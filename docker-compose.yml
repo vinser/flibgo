@@ -1,0 +1,40 @@
+version: '3'
+
+services: 
+  app:
+    image: golang 
+    restart: unless-stopped
+    volumes:
+      - ../books:/books
+      - .:/flibgo
+    working_dir: /flibgo
+    command: go run cmd/flibgo/main.go opds
+    ports:
+      - 8085:8085
+    networks:
+      - app-tier
+    depends_on:
+      - db  
+
+  db:
+    image: ghcr.io/linuxserver/mariadb
+    restart: unless-stopped
+    volumes:
+      - ../dbdata:/config
+    environment:
+      - PUID=0
+      - PGID=0
+      - MYSQL_ROOT_PASSWORD=flibgo
+      - MYSQL_DATABASE=flibgo
+      - MYSQL_USER=flibgo
+      - MYSQL_PASSWORD=flibgo
+      - TZ=Asia/Yekaterinburg
+    # ports:
+    #   - 3306:3306
+    networks:
+      - app-tier
+
+networks:
+  app-tier:
+    driver: bridge
+      
