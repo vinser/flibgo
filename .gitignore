@@ -1,6 +1,6 @@
 /.devcontainer/
 /.vscode/
 /dbdata/
-/logs/**
+/logs/*
 /test/
 /Dockerfile
