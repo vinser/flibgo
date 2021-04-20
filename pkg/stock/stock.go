@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vinser/flibgo/pkgflibgo/pkg/config"
-	"github.com/vinser/flibgo/pkgflibgo/pkg/database"
-	"github.com/vinser/flibgo/pkgflibgo/pkg/fb2"
-	"github.com/vinser/flibgo/pkgflibgo/pkg/genres"
-	"github.com/vinser/flibgo/pkgflibgo/pkg/model"
+	"github.com/vinser/flibgo/pkg/config"
+	"github.com/vinser/flibgo/pkg/database"
+	"github.com/vinser/flibgo/pkg/fb2"
+	"github.com/vinser/flibgo/pkg/genres"
+	"github.com/vinser/flibgo/pkg/model"
 )
 
 type Handler struct {
