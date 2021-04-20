@@ -20,7 +20,7 @@ services:
     image: ghcr.io/linuxserver/mariadb
     restart: unless-stopped
     volumes:
-      - ../dbdata:/config
+      - ./dbdata:/config
     environment:
       - PUID=0
       - PGID=0
