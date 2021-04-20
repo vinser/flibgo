@@ -3,10 +3,11 @@ package fb2
 import (
 	"encoding/xml"
 	"errors"
-	"flibgo/pkg/model"
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/vinser/flibgo/pkg/model"
 
 	"golang.org/x/text/encoding/charmap"
 )
