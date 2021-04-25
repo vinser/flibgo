@@ -23,28 +23,32 @@ import (
 func main() {
 
 	opdsCmd := flag.NewFlagSet("opds", flag.ExitOnError)
-	opdsConfig := opdsCmd.String("config", "config/config.yml", "configuration file")
-	// opdsConfig := opdsCmd.String("config", "../config/config.yml", "config file")
 
 	dbCmd := flag.NewFlagSet("database", flag.ExitOnError)
-	dbConfig := dbCmd.String("config", "config/config.yml", "config file")
 	dbScan := dbCmd.Bool("scan", false, "scan book stock directory and add new books to database")
 	dbInit := dbCmd.Bool("init", false, "empty book database without scanning book stock directory")
 
+	const configFile = "config/config.yml"
+	// const configFile = "../config/config.yml" // for debug
 	if len(os.Args) < 2 {
-		startOPDS(*opdsConfig)
-		// startOPDS("config/config.yml")
-		// startOPDS("../config/config.yml") //for debug
+		startOPDS(configFile)
 	} else {
 		switch os.Args[1] {
 		case "opds":
 			opdsCmd.Parse(os.Args[2:])
-			startOPDS(*opdsConfig)
+			startOPDS(configFile)
 		case "db":
 			dbCmd.Parse(os.Args[2:])
-			maintainDB(*dbConfig, *dbScan, *dbInit)
+			var op stock.Op
+			if *dbInit {
+				op |= stock.Init
+			}
+			if *dbScan {
+				op |= stock.Scan
+			}
+			maintainStock(configFile, op)
 		default:
-			fmt.Println("expected 'opds' or 'db' subcommands")
+			fmt.Println("'opds' or 'db' subcommand is expected ")
 			os.Exit(1)
 		}
 	}
@@ -70,13 +74,16 @@ func startOPDS(configFile string) {
 
 	if !db.IsReady() {
 		db.InitDB(cfg.Database.INIT_SCRIPT)
-		lg.I.Println("Empty database was inited. You can add new books by flibgo db -scan")
+		f := "Empty database was inited. You can add new books by flibgo db -scan"
+		lg.I.Println(f)
+		log.Println(f)
 		return
 	}
 
 	portString := fmt.Sprint(":", cfg.OPDS.PORT)
-	lg.I.Printf("server on http://localhost%s is listening\n", portString)
-	log.Printf("server on http://localhost%s is listening\n", portString)
+	f := "server on http://localhost%s is listening\n"
+	lg.I.Printf(f, portString)
+	log.Printf(f, portString)
 
 	// err := http.ListenAndServe(portString, handler)
 
@@ -90,8 +97,9 @@ func startOPDS(configFile string) {
 		<-stop
 		err := server.Shutdown(context.Background())
 		if err != nil {
-			lg.E.Printf("error during shutdown: %v\n", err)
-			log.Printf("error during shutdown: %v\n", err)
+			f := "error during shutdown: %v\n"
+			lg.E.Printf(f, err)
+			log.Printf(f, err)
 		}
 		wg.Done()
 	}()
@@ -100,15 +108,17 @@ func startOPDS(configFile string) {
 	if err == http.ErrServerClosed {
 		log.Println("commencing server shutdown...")
 		wg.Wait()
-		lg.I.Printf("server on http://localhost%s was shut down successfully\n", portString)
-		log.Printf("server on http://localhost%s was shut down successfully\n", portString)
+		f := "server on http://localhost%s was shut down successfully\n"
+		lg.I.Printf(f, portString)
+		log.Printf(f, portString)
 	} else if err != nil {
-		lg.E.Printf("server error: %v\n", err)
-		log.Printf("server error: %v\n", err)
+		f := "server error: %v\n"
+		lg.E.Printf(f, err)
+		log.Printf(f, err)
 	}
 }
 
-func maintainDB(configFile string, scan, init bool) {
+func maintainStock(configFile string, op stock.Op) {
 	cfg := config.GetConfig(configFile)
 	gt := genres.NewGenresTree(cfg.Genres.TREE_FILE)
 	db := database.NewDB(cfg.Database.DSN)
@@ -121,5 +131,5 @@ func maintainDB(configFile string, scan, init bool) {
 		GT:  gt,
 		LOG: lg,
 	}
-	handler.Do(scan, init)
+	handler.Do(op)
 }
