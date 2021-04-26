@@ -42,14 +42,12 @@ func (db *DB) NewBook(b *model.Book) int64 {
 		b.Updated,
 	)
 	if err != nil {
-
-		fmt.Println(err.Error(), ":", b.Year)
-		panic(0)
+		log.Panic(err)
 	}
 
 	bookId, err = res.LastInsertId()
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err)
 		return 0
 	}
 
@@ -69,7 +67,7 @@ func (db *DB) NewBook(b *model.Book) int64 {
 		q = "INSERT INTO books_series (serie_num, book_id, serie_id) VALUES (?, ?, ?)"
 		res, err = db.Exec(q, b.SerieNum, bookId, serieId)
 		if err != nil {
-			fmt.Println(err.Error())
+			log.Println(err)
 		}
 	}
 
