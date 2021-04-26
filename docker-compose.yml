@@ -5,7 +5,8 @@ services:
     image: golang 
     restart: unless-stopped
     volumes:
-      - ../books:/books
+      - /your/path/to/books:/books
+      # ^^^^^^^^^^^^^^^^^^^ - your path to book stock
       - .:/flibgo
     working_dir: /flibgo
     command: go run cmd/flibgo/main.go opds
@@ -17,19 +18,18 @@ services:
       - db  
 
   db:
-    image: ghcr.io/linuxserver/mariadb
+    image: linuxserver/mariadb
     restart: unless-stopped
     volumes:
       - ./dbdata:/config
     environment:
-      - PUID=0
-      - PGID=0
+      # - PUID=0
+      # - PGID=0
       - MYSQL_ROOT_PASSWORD=flibgo
       - MYSQL_DATABASE=flibgo
       - MYSQL_USER=flibgo
       - MYSQL_PASSWORD=flibgo
       - TZ=Asia/Yekaterinburg
-    command: --character-set-server=utf8 --collation-server=utf8_general_ci
     # ports:
     #   - 3306:3306
     networks:

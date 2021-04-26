@@ -17,6 +17,13 @@ import (
 	"github.com/vinser/flibgo/pkg/model"
 )
 
+type Op uint32
+
+const (
+	Init Op = 1 << iota
+	Scan
+)
+
 type Handler struct {
 	CFG *config.Config
 	DB  *database.DB
@@ -24,14 +31,14 @@ type Handler struct {
 	LOG *config.Log
 }
 
-func (h *Handler) Do(scan, init bool) {
+func (h *Handler) Do(op Op) {
 	db := h.DB
 	defer db.Close()
-	if init {
+	if op&Init == Init {
 		db.DropDB(h.CFG.Database.DROP_SCRIPT)
 		db.InitDB(h.CFG.Database.INIT_SCRIPT)
 	}
-	if scan {
+	if op&Scan == Scan {
 		start := time.Now()
 		h.LOG.I.Println(">>> Book stock scan started  >>>>>>>>>>>>>>>>>>>>>>>>>>>")
 		h.scanDir(h.CFG.Library.BOOK_STOCK)
@@ -44,12 +51,12 @@ func (h *Handler) Do(scan, init bool) {
 
 // Scan dir
 func (h *Handler) scanDir(dir string) error {
-	f, err := os.Open(dir)
+	d, err := os.Open(dir)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	entries, err := f.Readdir(-1)
+	defer d.Close()
+	entries, err := d.Readdir(-1)
 	if err != nil {
 		return err
 	}
@@ -60,55 +67,67 @@ func (h *Handler) scanDir(dir string) error {
 		case entry.Size() == 0:
 			h.LOG.E.Printf("File %s from dir has size of zero\n", entry.Name())
 		case entry.IsDir():
-			h.LOG.I.Println("=== ", path)
-			// scanDir(path) // Recurse
+			h.LOG.I.Printf("Subdirectory %s has been skipped\n ", path)
+			// scanDir(path) // uncomment for recurse
 		case ext == ".zip":
 			h.LOG.I.Println("Zip: ", entry.Name())
 			h.processZip(path)
 		case ext == ".fb2":
 			h.LOG.I.Println("FB2: ", entry.Name())
-			crc32 := FileCRC32(path)
-			if h.DB.SkipBook(entry.Name(), crc32) {
-				h.LOG.I.Printf("File %s from dir skipped\n", entry.Name())
-				continue
-			}
-			f, _ := os.Open(path)
-			fb2, err := fb2.NewFB2(f)
-			if err != nil {
-				h.LOG.I.Printf("File %s from dir has error:\n", entry.Name())
-				h.LOG.E.Println(err)
-				f.Close()
-				continue
-			}
-			h.LOG.D.Println(fb2)
-			book := &model.Book{
-				File:     entry.Name(),
-				CRC32:    crc32,
-				Archive:  "",
-				Size:     entry.Size(),
-				Format:   "fb2",
-				Title:    fb2.GetTitle(),
-				Sort:     fb2.GetSort(),
-				Year:     fb2.GetYear(),
-				Plot:     fb2.GetPlot(),
-				Cover:    fb2.GetCover(),
-				Language: fb2.GetLanguage(),
-				Authors:  fb2.GetAuthors(),
-				Genres:   fb2.GetGenres(),
-				Serie:    fb2.GetSerie(),
-				SerieNum: fb2.Serie.Number,
-				Updated:  time.Now().Unix(),
-			}
-			h.adjustGenges(book)
-			h.DB.NewBook(book)
-			f.Close()
-			h.LOG.I.Printf("File %s from dir added\n", entry.Name())
+			h.processFB2(path)
 		}
 	}
 	return nil
 }
 
-// Get zip
+// Process single FB2 file
+func (h *Handler) processFB2(path string) {
+	crc32 := fileCRC32(path)
+	fInfo, _ := os.Stat(path)
+	if h.DB.SkipBook(fInfo.Name(), crc32) {
+		h.LOG.I.Printf("File %s has been skipped\n", path)
+		return
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		h.LOG.E.Printf("Failed to open file %s: %s\n", path, err)
+		return
+	}
+	defer f.Close()
+	fb2, err := fb2.NewFB2(f)
+	if err != nil {
+		h.LOG.I.Printf("File %s has error: %s\n", path, err)
+		h.LOG.E.Println(err)
+		return
+	}
+
+	h.LOG.D.Println(fb2)
+	book := &model.Book{
+		File:     fInfo.Name(),
+		CRC32:    crc32,
+		Archive:  "",
+		Size:     fInfo.Size(),
+		Format:   "fb2",
+		Title:    fb2.GetTitle(),
+		Sort:     fb2.GetSort(),
+		Year:     fb2.GetYear(),
+		Plot:     fb2.GetPlot(),
+		Cover:    fb2.GetCover(),
+		Language: fb2.GetLanguage(),
+		Authors:  fb2.GetAuthors(),
+		Genres:   fb2.GetGenres(),
+		Serie:    fb2.GetSerie(),
+		SerieNum: fb2.Serie.Number,
+		Updated:  time.Now().Unix(),
+	}
+	h.adjustGenges(book)
+	h.DB.NewBook(book)
+	f.Close()
+	h.LOG.I.Printf("File %s has been added\n", path)
+
+}
+
+// Process zip archive with FB2 files
 func (h *Handler) processZip(zipPath string) {
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
@@ -118,8 +137,12 @@ func (h *Handler) processZip(zipPath string) {
 
 	for _, file := range zr.File {
 		h.LOG.D.Print(ZipEntryInfo(file))
+		if filepath.Ext(file.Name) != ".fb2" {
+			h.LOG.E.Printf("File %s from %s has not FB2 format\n", file.Name, filepath.Base(zipPath))
+			continue
+		}
 		if h.DB.SkipBook(file.Name, file.CRC32) {
-			h.LOG.I.Printf("File %s from %s skipped\n", file.Name, filepath.Base(zipPath))
+			h.LOG.I.Printf("File %s from %s has been skipped\n", file.Name, filepath.Base(zipPath))
 			continue
 		}
 		if file.UncompressedSize == 0 {
@@ -156,7 +179,7 @@ func (h *Handler) processZip(zipPath string) {
 		h.adjustGenges(book)
 		h.DB.NewBook(book)
 		f.Close()
-		h.LOG.I.Printf("File %s from %s added\n", file.Name, filepath.Base(zipPath))
+		h.LOG.I.Printf("File %s from %s has been added\n", file.Name, filepath.Base(zipPath))
 	}
 }
 
@@ -166,8 +189,8 @@ func (h *Handler) adjustGenges(b *model.Book) {
 	}
 }
 
-// FileCRC32 calculates file CRC32
-func FileCRC32(filePath string) uint32 {
+// fileCRC32 calculates file CRC32
+func fileCRC32(filePath string) uint32 {
 	fbytes, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return 0
