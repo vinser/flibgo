@@ -14,10 +14,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-type DB struct {
-	*sql.DB
-}
-
 // Books
 func (db *DB) NewBook(b *model.Book) int64 {
 	bookId := db.FindBook(b)
@@ -27,7 +23,8 @@ func (db *DB) NewBook(b *model.Book) int64 {
 	languageId := db.NewLanguage(b.Language)
 
 	q := "INSERT INTO books (file, crc32, archive, size, format, title, sort, year,language_id, plot, cover, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-	res, err := db.Exec(q,
+	db.prepQuery(q)
+	res, err := db.Q[q].Exec(
 		b.File,
 		b.CRC32,
 		b.Archive,
@@ -53,19 +50,22 @@ func (db *DB) NewBook(b *model.Book) int64 {
 
 	for _, author := range b.Authors {
 		authorId := db.NewAuthor(author)
-		q = "INSERT INTO books_authors (book_id, author_id) VALUES (?, ?)"
-		res, err = db.Exec(q, bookId, authorId)
+		q := "INSERT INTO books_authors (book_id, author_id) VALUES (?, ?)"
+		db.prepQuery(q)
+		res, err = db.Q[q].Exec(bookId, authorId)
 	}
 
 	for _, genre := range b.Genres {
-		q = "INSERT INTO books_genres (book_id, genre_code) VALUES (?, ?)"
-		res, err = db.Exec(q, bookId, genre)
+		q := "INSERT INTO books_genres (book_id, genre_code) VALUES (?, ?)"
+		db.prepQuery(q)
+		res, err = db.Q[q].Exec(bookId, genre)
 	}
 
 	serieId := db.NewSerie(b.Serie)
 	if serieId != 0 {
-		q = "INSERT INTO books_series (serie_num, book_id, serie_id) VALUES (?, ?, ?)"
-		res, err = db.Exec(q, b.SerieNum, bookId, serieId)
+		q := "INSERT INTO books_series (serie_num, book_id, serie_id) VALUES (?, ?, ?)"
+		db.prepQuery(q)
+		res, err = db.Q[q].Exec(b.SerieNum, bookId, serieId)
 		if err != nil {
 			log.Println(err)
 		}
@@ -77,7 +77,8 @@ func (db *DB) NewBook(b *model.Book) int64 {
 func (db *DB) FindBook(b *model.Book) int64 {
 	var id int64 = 0
 	q := "SELECT id FROM books WHERE sort LIKE ? and crc32=?"
-	err := db.QueryRow(q, b.Sort, b.CRC32).Scan(&id)
+	db.prepQuery(q)
+	err := db.Q[q].QueryRow(b.Sort, b.CRC32).Scan(&id)
 	if err == sql.ErrNoRows {
 		return 0
 	}
@@ -87,7 +88,8 @@ func (db *DB) FindBook(b *model.Book) int64 {
 func (db *DB) FindBookById(id int64) *model.Book {
 	b := &model.Book{}
 	q := "SELECT file, archive, format, title, cover FROM books WHERE id=?"
-	err := db.QueryRow(q, id).Scan(&b.File, &b.Archive, &b.Format, &b.Title, &b.Cover)
+	db.prepQuery(q)
+	err := db.Q[q].QueryRow(id).Scan(&b.File, &b.Archive, &b.Format, &b.Title, &b.Cover)
 	if err == sql.ErrNoRows {
 		return nil
 	}
@@ -97,7 +99,8 @@ func (db *DB) FindBookById(id int64) *model.Book {
 func (db *DB) SkipBook(file string, crc32 uint32) bool {
 	var id int64 = 0
 	q := "SELECT id FROM books WHERE file=? AND crc32=?"
-	err := db.QueryRow(q, file, crc32).Scan(&id)
+	db.prepQuery(q)
+	err := db.Q[q].QueryRow(file, crc32).Scan(&id)
 	return err != sql.ErrNoRows
 }
 
@@ -108,7 +111,8 @@ func (db *DB) NewLanguage(l *model.Language) int64 {
 		return id
 	}
 	q := "INSERT INTO languages (code, name) VALUES (?, ?)"
-	res, _ := db.Exec(q, l.Code, l.Code)
+	db.prepQuery(q)
+	res, _ := db.Q[q].Exec(l.Code, l.Code)
 	id, _ = res.LastInsertId()
 	return id
 }
@@ -116,7 +120,8 @@ func (db *DB) NewLanguage(l *model.Language) int64 {
 func (db *DB) FindLanguage(l *model.Language) int64 {
 	var id int64 = 0
 	q := "SELECT id FROM languages WHERE code LIKE ?"
-	err := db.QueryRow(q, l.Code).Scan(&id)
+	db.prepQuery(q)
+	err := db.Q[q].QueryRow(l.Code).Scan(&id)
 	if err == sql.ErrNoRows {
 		return 0
 	}
@@ -130,7 +135,8 @@ func (db *DB) NewAuthor(a *model.Author) int64 {
 		return id
 	}
 	q := "INSERT INTO authors (name, sort) VALUES (?, ?)"
-	res, _ := db.Exec(q, a.Name, a.Sort)
+	db.prepQuery(q)
+	res, _ := db.Q[q].Exec(a.Name, a.Sort)
 	id, _ = res.LastInsertId()
 	return id
 }
@@ -241,7 +247,8 @@ func (db *DB) AuthorBookSeries(id int64) []*model.Serie {
 func (db *DB) AuthorByID(id int64) *model.Author {
 	author := &model.Author{}
 	q := "SELECT name, sort FROM authors WHERE id=?"
-	err := db.QueryRow(q, id).Scan(&author.Name, &author.Sort)
+	db.prepQuery(q)
+	err := db.Q[q].QueryRow(id).Scan(&author.Name, &author.Sort)
 	if err == sql.ErrNoRows {
 		return nil
 	}
@@ -251,7 +258,8 @@ func (db *DB) AuthorByID(id int64) *model.Author {
 func (db *DB) FindAuthor(a *model.Author) int64 {
 	var id int64 = 0
 	q := "SELECT id FROM authors WHERE sort LIKE ?"
-	err := db.QueryRow(q, a.Sort).Scan(&id)
+	db.prepQuery(q)
+	err := db.Q[q].QueryRow(a.Sort).Scan(&id)
 	if err == sql.ErrNoRows {
 		return 0
 	}
@@ -477,6 +485,11 @@ func (db *DB) SearchAuthors(pattern string) []*model.Author {
 	return authors
 }
 
+type DB struct {
+	*sql.DB
+	Q map[string]*sql.Stmt
+}
+
 // ==================================
 func NewDB(dsn string) *DB {
 	db, err := sql.Open("mysql", dsn)
@@ -487,7 +500,7 @@ func NewDB(dsn string) *DB {
 	if err := db.Ping(); err != nil {
 		log.Fatal(err)
 	}
-	return &DB{db}
+	return &DB{db, map[string]*sql.Stmt{}}
 }
 
 func (db *DB) InitDB(initSQL string) {
@@ -546,4 +559,21 @@ func (db *DB) pageQuery(query string, limit, offset int, args ...interface{}) (*
 	// log.Println("query: ", query, " args: ", args)
 	rows, err := db.Query(query, args...)
 	return rows, err
+}
+
+func (db *DB) prepQuery(query string) {
+	if _, ok := db.Q[query]; ok {
+		return
+	}
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		log.Fatal(err)
+	}
+	db.Q[query] = stmt
+}
+
+func (db *DB) prepClose() {
+	for _, stmt := range db.Q {
+		stmt.Close()
+	}
 }
