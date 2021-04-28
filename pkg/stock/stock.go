@@ -40,7 +40,6 @@ type Sync struct {
 
 func (h *Handler) Do(op Op) {
 	db := h.DB
-	defer db.Close()
 	if op&Init == Init {
 		db.DropDB(h.CFG.Database.DROP_SCRIPT)
 		db.InitDB(h.CFG.Database.INIT_SCRIPT)

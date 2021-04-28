@@ -8,7 +8,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
+	"syscall"
+	"time"
 
 	"github.com/vinser/flibgo/pkg/config"
 	"github.com/vinser/flibgo/pkg/database"
@@ -21,115 +22,77 @@ import (
 )
 
 func main() {
-
-	opdsCmd := flag.NewFlagSet("opds", flag.ExitOnError)
-
-	dbCmd := flag.NewFlagSet("database", flag.ExitOnError)
-	dbScan := dbCmd.Bool("scan", false, "scan book stock directory and add new books to database")
-	dbInit := dbCmd.Bool("init", false, "empty book database without scanning book stock directory")
-
 	const configFile = "config/config.yml"
-	// const configFile = "../config/config.yml" // for debug
-	if len(os.Args) < 2 {
-		startOPDS(configFile)
-	} else {
-		switch os.Args[1] {
-		case "opds":
-			opdsCmd.Parse(os.Args[2:])
-			startOPDS(configFile)
-		case "db":
-			dbCmd.Parse(os.Args[2:])
-			var op stock.Op
-			if *dbInit {
-				op |= stock.Init
-			}
-			if *dbScan {
-				op |= stock.Scan
-			}
-			maintainStock(configFile, op)
-		default:
-			fmt.Println("'opds' or 'db' subcommand is expected ")
-			os.Exit(1)
-		}
-	}
-}
 
-func startOPDS(configFile string) {
 	cfg := config.GetConfig(configFile)
 	db := database.NewDB(cfg.Database.DSN)
 	defer db.Close()
 
 	gt := genres.NewGenresTree(cfg.Genres.TREE_FILE)
-	lg := config.NewLog(cfg.Logs.OPDS, cfg.Logs.DEBUG)
-	defer lg.File.Close()
+
+	reindex := flag.Bool("reindex", false, "empty catalog database and then scan book stock directory to add new books to catalog")
+	flag.Parse()
+	lScan := config.NewLog(cfg.Logs.SCAN, cfg.Logs.DEBUG)
+	defer lScan.File.Close()
+	hScan := &stock.Handler{
+		CFG: cfg,
+		DB:  db,
+		GT:  gt,
+		LOG: lScan,
+	}
+	if *reindex {
+		hScan.Do(stock.Init | stock.Scan)
+		return
+	}
+
+	lOPDS := config.NewLog(cfg.Logs.OPDS, cfg.Logs.DEBUG)
+	defer lOPDS.File.Close()
+	config.LoadLocales()
 	langTag := language.Make(cfg.Language.DEFAULT)
-	handler := &opds.Handler{
+	hOPDS := &opds.Handler{
 		CFG: cfg,
 		DB:  db,
 		GT:  gt,
 		P:   message.NewPrinter(langTag),
-		LOG: lg,
+		LOG: lOPDS,
 	}
-	config.LoadLocales()
 
 	if !db.IsReady() {
 		db.InitDB(cfg.Database.INIT_SCRIPT)
-		f := "Empty database was inited. You can add new books by flibgo db -scan"
-		lg.I.Println(f)
-		log.Println(f)
+		f := "Catalog was inited. Tables were created in empty database"
+		lOPDS.I.Println(f)
 		return
 	}
-
 	portString := fmt.Sprint(":", cfg.OPDS.PORT)
+	server := &http.Server{
+		Addr:    portString,
+		Handler: hOPDS,
+	}
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
 	f := "server on http://localhost%s is listening\n"
-	lg.I.Printf(f, portString)
+	lOPDS.I.Printf(f, portString)
 	log.Printf(f, portString)
 
-	// err := http.ListenAndServe(portString, handler)
-
-	server := &http.Server{Addr: portString, Handler: handler}
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, os.Interrupt)
-		<-stop
-		err := server.Shutdown(context.Background())
-		if err != nil {
-			f := "error during shutdown: %v\n"
-			lg.E.Printf(f, err)
-			log.Printf(f, err)
-		}
-		wg.Done()
+	<-done
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer func() {
+		// extra handling here
+		cancel()
 	}()
 
-	err := server.ListenAndServe()
-	if err == http.ErrServerClosed {
-		log.Println("commencing server shutdown...")
-		wg.Wait()
-		f := "server on http://localhost%s was shut down successfully\n"
-		lg.I.Printf(f, portString)
-		log.Printf(f, portString)
-	} else if err != nil {
-		f := "server error: %v\n"
-		lg.E.Printf(f, err)
-		log.Printf(f, err)
+	if err := server.Shutdown(ctx); err != nil {
+		f := "shutdown error: %v\n"
+		lOPDS.E.Printf(f, err)
+		log.Fatalf(f, err)
 	}
-}
-
-func maintainStock(configFile string, op stock.Op) {
-	cfg := config.GetConfig(configFile)
-	gt := genres.NewGenresTree(cfg.Genres.TREE_FILE)
-	db := database.NewDB(cfg.Database.DSN)
-	defer db.Close()
-	lg := config.NewLog(cfg.Logs.SCAN, cfg.Logs.DEBUG)
-	defer lg.File.Close()
-	handler := &stock.Handler{
-		CFG: cfg,
-		DB:  db,
-		GT:  gt,
-		LOG: lg,
-	}
-	handler.Do(op)
+	f = "server on http://localhost%s was shut down successfully\n"
+	lOPDS.I.Printf(f, portString)
+	log.Printf(f, portString)
 }
