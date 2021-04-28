@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vinser/flibgo/pkg/config"
@@ -29,6 +30,12 @@ type Handler struct {
 	DB  *database.DB
 	GT  *genres.GenresTree
 	LOG *config.Log
+	SY  Sync
+}
+
+type Sync struct {
+	WG    *sync.WaitGroup
+	Quota chan struct{}
 }
 
 func (h *Handler) Do(op Op) {
@@ -60,6 +67,8 @@ func (h *Handler) scanDir(dir string) error {
 	if err != nil {
 		return err
 	}
+	h.SY.WG = &sync.WaitGroup{}
+	h.SY.Quota = make(chan struct{}, h.CFG.Database.MAX_SCAN_THREADS)
 	for _, entry := range entries {
 		path := filepath.Join(dir, entry.Name())
 		ext := strings.ToLower(filepath.Ext(entry.Name()))
@@ -71,12 +80,15 @@ func (h *Handler) scanDir(dir string) error {
 			// scanDir(path) // uncomment for recurse
 		case ext == ".zip":
 			h.LOG.I.Println("Zip: ", entry.Name())
-			h.processZip(path)
+			h.SY.WG.Add(1)
+			h.SY.Quota <- struct{}{}
+			go h.processZip(path)
 		case ext == ".fb2":
 			h.LOG.I.Println("FB2: ", entry.Name())
 			h.processFB2(path)
 		}
 	}
+	h.SY.WG.Wait()
 	return nil
 }
 
@@ -129,6 +141,7 @@ func (h *Handler) processFB2(path string) {
 
 // Process zip archive with FB2 files
 func (h *Handler) processZip(zipPath string) {
+	defer h.SY.WG.Done()
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
 		panic(err)
@@ -180,7 +193,10 @@ func (h *Handler) processZip(zipPath string) {
 		h.DB.NewBook(book)
 		f.Close()
 		h.LOG.I.Printf("File %s from %s has been added\n", file.Name, filepath.Base(zipPath))
+
+		// runtime.Gosched()
 	}
+	<-h.SY.Quota
 }
 
 func (h *Handler) adjustGenges(b *model.Book) {

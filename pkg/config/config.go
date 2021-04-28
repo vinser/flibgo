@@ -15,15 +15,17 @@ import (
 
 type Config struct {
 	Library struct {
-		BOOK_STOCK string `yaml:"BOOK_STOCK"`
+		BOOK_STOCK       string `yaml:"BOOK_STOCK"`
+		NEW_ACQUISITIONS string `yaml:"NEW_ACQUISITIONS"`
 	}
 	Language struct {
 		DEFAULT string `yaml:"DEFAULT"`
 	}
 	Database struct {
-		DSN         string `yaml:"DSN"`
-		INIT_SCRIPT string `yaml:"INIT_SCRIPT"`
-		DROP_SCRIPT string `yaml:"DROP_SCRIPT"`
+		DSN              string `yaml:"DSN"`
+		INIT_SCRIPT      string `yaml:"INIT_SCRIPT"`
+		DROP_SCRIPT      string `yaml:"DROP_SCRIPT"`
+		MAX_SCAN_THREADS int    `yaml:"MAX_SCAN_THREADS"`
 	}
 	Genres struct {
 		TREE_FILE string `yaml:"TREE_FILE"`

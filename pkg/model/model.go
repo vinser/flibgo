@@ -10,7 +10,7 @@ type Author struct {
 	ID    int64
 	Name  string
 	Sort  string
-	Count int
+	Count int // for intermediate storing author book counts
 }
 
 type Book struct {

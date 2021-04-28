@@ -734,7 +734,7 @@ func NewFeed(title, subtitle, self string) *Feed {
 		Title:     title,
 		ID:        self,
 		Link: []Link{
-			{Rel: FeedSearchLinkRel, Href: "/opds/search?q={searchTerms}", Type: "application/atom+xml", Title: "Search on catalog"},
+			{Rel: FeedSearchLinkRel, Href: "/opds/search?q={searchTerms}", Type: FeedSearchLinkType, Title: "Search on catalog"},
 			{Rel: FeedStartLinkRel, Href: "/opds", Type: FeedNavigationLinkType},
 			{Rel: FeedSelfLinkRel, Href: self, Type: FeedNavigationLinkType},
 		},

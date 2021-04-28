@@ -1,5 +1,6 @@
 library:
   BOOK_STOCK: "/books"
+  NEW_ACQUISITIONS: "/books/new"
 
 language:
   DEFAULT: "ru"
@@ -8,6 +9,7 @@ database:
   DSN: "flibgo:flibgo@tcp(db:3306)/flibgo?charset=utf8"
   INIT_SCRIPT: "config/mysql_db_init.sql"
   DROP_SCRIPT: "config/mysql_db_drop.sql"
+  MAX_SCAN_THREADS: 3
 
 genres:
   TREE_FILE: "config/genres.xml"
