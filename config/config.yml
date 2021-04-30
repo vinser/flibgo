@@ -1,6 +1,8 @@
 library:
   BOOK_STOCK: "/books"
   NEW_ACQUISITIONS: "/books/new"
+  TRASH: "/books/trash"
+  POLL_PERIOD: 60
 
 language:
   DEFAULT: "ru"

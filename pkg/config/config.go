@@ -17,6 +17,8 @@ type Config struct {
 	Library struct {
 		BOOK_STOCK       string `yaml:"BOOK_STOCK"`
 		NEW_ACQUISITIONS string `yaml:"NEW_ACQUISITIONS"`
+		TRASH            string `yaml:"TRASH"`
+		POLL_PERIOD      int    `yaml:"POLL_PERIOD"`
 	}
 	Language struct {
 		DEFAULT string `yaml:"DEFAULT"`

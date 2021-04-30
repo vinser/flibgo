@@ -3,21 +3,37 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
 func main() {
-	pollPeriod := 5 * time.Second
-
-	go func(dir string, p time.Duration) {
+	pollPeriod := 3 * time.Second
+	scanDir := "scan"
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt)
+	stopScan := make(chan bool)
+	go func() {
+		defer func() { stopScan <- true }()
 		for {
-			poll(dir)
-			time.Sleep(p)
+			poll(scanDir)
+			time.Sleep(pollPeriod)
+			select {
+			case <-stopScan:
+				return
+			default:
+				continue
+			}
 		}
 
-	}("scan", pollPeriod)
+	}()
+	<-done
+	fmt.Println("\nstopping...")
+	time.Sleep(2 * time.Second)
+	stopScan <- true
+	<-stopScan
 }
 
 func poll(dir string) error {
@@ -31,7 +47,7 @@ func poll(dir string) error {
 		return err
 	}
 	if len(entries) == 0 {
-		fmt.Printf("No files found")
+		fmt.Println("No files found")
 		return nil
 	}
 	for _, entry := range entries {
@@ -55,7 +71,7 @@ func poll(dir string) error {
 			process(scan)
 			os.Rename(scan, archive)
 		default:
-			fmt.Printf("File %s from dir had unknown type and was moved to trash", entry.Name())
+			fmt.Printf("File %s from dir had unknown type and was moved to trash\n", entry.Name())
 			os.Rename(scan, trash)
 		}
 	}
@@ -63,6 +79,6 @@ func poll(dir string) error {
 }
 
 func process(path string) {
-	time.Sleep(30 * time.Second)
-	fmt.Printf("file: %s was processed", path)
+	time.Sleep(5 * time.Second)
+	fmt.Printf("file: %s was processed\n", path)
 }

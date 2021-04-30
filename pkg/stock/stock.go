@@ -38,25 +38,25 @@ type Sync struct {
 	Quota chan struct{}
 }
 
-func (h *Handler) Do(op Op) {
+func (h *Handler) Reindex() {
 	db := h.DB
-	if op&Init == Init {
-		db.DropDB(h.CFG.Database.DROP_SCRIPT)
-		db.InitDB(h.CFG.Database.INIT_SCRIPT)
-	}
-	if op&Scan == Scan {
-		start := time.Now()
-		h.LOG.I.Println(">>> Book stock scan started  >>>>>>>>>>>>>>>>>>>>>>>>>>>")
-		h.scanDir(h.CFG.Library.BOOK_STOCK)
-		finish := time.Now()
-		h.LOG.I.Println("<<< Book stock scan finished <<<<<<<<<<<<<<<<<<<<<<<<<<<")
-		elapsed := finish.Sub(start)
-		h.LOG.I.Println("Time elapsed: ", elapsed)
-	}
+	db.DropDB(h.CFG.Database.DROP_SCRIPT)
+	db.InitDB(h.CFG.Database.INIT_SCRIPT)
+	start := time.Now()
+	h.LOG.I.Println(">>> Book stock reindex started  >>>>>>>>>>>>>>>>>>>>>>>>>>>")
+	h.ScanDir(true)
+	finish := time.Now()
+	h.LOG.I.Println("<<< Book stock reindex finished <<<<<<<<<<<<<<<<<<<<<<<<<<<")
+	elapsed := finish.Sub(start)
+	h.LOG.I.Println("Time elapsed: ", elapsed)
 }
 
-// Scan dir
-func (h *Handler) scanDir(dir string) error {
+// Scan
+func (h *Handler) ScanDir(reindex bool) error {
+	dir := h.CFG.Library.NEW_ACQUISITIONS
+	if reindex {
+		dir = h.CFG.Library.BOOK_STOCK
+	}
 	d, err := os.Open(dir)
 	if err != nil {
 		return err
@@ -74,9 +74,10 @@ func (h *Handler) scanDir(dir string) error {
 		switch {
 		case entry.Size() == 0:
 			h.LOG.E.Printf("File %s from dir has size of zero\n", entry.Name())
+			os.Rename(path, filepath.Join(h.CFG.Library.TRASH))
 		case entry.IsDir():
 			h.LOG.I.Printf("Subdirectory %s has been skipped\n ", path)
-			// scanDir(path) // uncomment for recurse
+			// scanDir(false) // uncomment for recurse
 		case ext == ".zip":
 			h.LOG.I.Println("Zip: ", entry.Name())
 			h.SY.WG.Add(1)
@@ -96,19 +97,22 @@ func (h *Handler) processFB2(path string) {
 	crc32 := fileCRC32(path)
 	fInfo, _ := os.Stat(path)
 	if h.DB.SkipBook(fInfo.Name(), crc32) {
-		h.LOG.I.Printf("File %s has been skipped\n", path)
+		msg := "file %s has been skipped"
+		h.LOG.I.Printf(msg, path, "\n")
+		h.moveFile(path, fmt.Errorf(msg, path))
 		return
 	}
 	f, err := os.Open(path)
 	if err != nil {
 		h.LOG.E.Printf("Failed to open file %s: %s\n", path, err)
+		h.moveFile(path, err)
 		return
 	}
 	defer f.Close()
 	fb2, err := fb2.NewFB2(f)
 	if err != nil {
-		h.LOG.I.Printf("File %s has error: %s\n", path, err)
-		h.LOG.E.Println(err)
+		h.LOG.E.Printf("File %s has error: %s\n", path, err)
+		h.moveFile(path, err)
 		return
 	}
 
@@ -135,7 +139,7 @@ func (h *Handler) processFB2(path string) {
 	h.DB.NewBook(book)
 	f.Close()
 	h.LOG.I.Printf("File %s has been added\n", path)
-
+	h.moveFile(path, nil)
 }
 
 // Process zip archive with FB2 files
@@ -143,7 +147,9 @@ func (h *Handler) processZip(zipPath string) {
 	defer h.SY.WG.Done()
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
-		panic(err)
+		h.LOG.E.Printf("Incorrect zip archive %s\n", zipPath)
+		h.moveFile(zipPath, err)
+		return
 	}
 	defer zr.Close()
 
@@ -195,6 +201,7 @@ func (h *Handler) processZip(zipPath string) {
 
 		// runtime.Gosched()
 	}
+	h.moveFile(zipPath, nil)
 	<-h.SY.Quota
 }
 
@@ -202,6 +209,17 @@ func (h *Handler) adjustGenges(b *model.Book) {
 	for i := range b.Genres {
 		b.Genres[i] = h.GT.Transfer(b.Genres[i])
 	}
+}
+
+func (h *Handler) moveFile(filePath string, err error) {
+	if err != nil {
+		os.Rename(filePath, filepath.Join(h.CFG.Library.TRASH, filepath.Base(filePath)))
+		return
+	}
+	if filepath.Dir(filePath) == h.CFG.Library.BOOK_STOCK {
+		return
+	}
+	os.Rename(filePath, filepath.Join(h.CFG.Library.BOOK_STOCK, filepath.Base(filePath)))
 }
 
 // fileCRC32 calculates file CRC32
