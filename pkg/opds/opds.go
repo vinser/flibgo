@@ -476,9 +476,9 @@ func (h *Handler) listSeries(w http.ResponseWriter, r *http.Request) {
 	if len(series) == 0 {
 		return
 	}
-	totalSeries := int(0)
+	totalBooks := int(0)
 	for _, s := range series {
-		totalSeries += s.Count
+		totalBooks += s.Count
 	}
 
 	selfHref := ""
@@ -490,7 +490,7 @@ func (h *Handler) listSeries(w http.ResponseWriter, r *http.Request) {
 
 	f := NewFeed(h.P.Sprintf("Series"), "", selfHref)
 	switch {
-	case totalSeries <= h.CFG.OPDS.PAGE_SIZE:
+	case len(series) <= h.CFG.OPDS.PAGE_SIZE:
 		series = h.DB.ListSeriesWithTotals(prefix)
 		for i := range series {
 			entry := &Entry{
@@ -519,7 +519,7 @@ func (h *Handler) listSeries(w http.ResponseWriter, r *http.Request) {
 				},
 				Content: &Content{
 					Type:    FeedTextContentType,
-					Content: h.P.Sprintf("Found series - %d", series[i].Count),
+					Content: h.P.Sprintf("Total books - %d", series[i].Count),
 				},
 			}
 			f.Entry = append(f.Entry, entry)
@@ -612,9 +612,9 @@ func (h *Handler) unloadBook(w http.ResponseWriter, r *http.Request) {
 	}
 	var rc io.ReadCloser
 	if book.Archive == "" {
-		rc, _ = os.Open(path.Join("/books", book.File))
+		rc, _ = os.Open(path.Join(h.CFG.Library.BOOK_STOCK, book.File))
 	} else {
-		zr, _ := zip.OpenReader(path.Join("/books", book.Archive))
+		zr, _ := zip.OpenReader(path.Join(h.CFG.Library.BOOK_STOCK, book.Archive))
 		defer zr.Close()
 		for _, file := range zr.File {
 			if file.Name == book.File {
@@ -660,9 +660,9 @@ func (h *Handler) unloadCover(w http.ResponseWriter, r *http.Request) {
 	}
 	var rc io.ReadCloser
 	if book.Archive == "" {
-		rc, _ = os.Open(path.Join("/books", book.File))
+		rc, _ = os.Open(path.Join(h.CFG.Library.BOOK_STOCK, book.File))
 	} else {
-		zr, _ := zip.OpenReader(path.Join("/books", book.Archive))
+		zr, _ := zip.OpenReader(path.Join(h.CFG.Library.BOOK_STOCK, book.Archive))
 		defer zr.Close()
 		for _, file := range zr.File {
 			if file.Name == book.File {

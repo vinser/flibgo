@@ -358,10 +358,10 @@ func (db *DB) ListSeries(prefix, language string) []*model.Serie {
 		err  error
 	)
 	if l == 1 {
-		q := fmt.Sprint(`SELECT id, substr(name,1,1) as s, count(*) as c FROM series GROUP BY s ORDER BY name<'`, order, `', name<'`, order, `',name`)
+		q := fmt.Sprint(`SELECT s.id, substr(s.name,1,1) as n, count(*) as c FROM series as s, books_series as bs WHERE s.id=bs.serie_id GROUP BY n HAVING c>2 ORDER BY name<'`, order, `', name<'`, order, `',name`)
 		rows, err = db.Query(q)
 	} else {
-		q := fmt.Sprint(`SELECT id, substr(name,1,`, fmt.Sprint(l), `) as s, count(*) as c FROM series WHERE name LIKE ? GROUP BY s`)
+		q := fmt.Sprint(`SELECT s.id, substr(s.name,1,`, fmt.Sprint(l), `) as n, count(*) as c FROM series as s, books_series as bs WHERE s.id=bs.serie_id AND s.name LIKE ? GROUP BY n HAVING c>2`)
 		rows, err = db.Query(q, prefix+"%")
 	}
 	if err != nil {
@@ -382,7 +382,7 @@ func (db *DB) ListSeries(prefix, language string) []*model.Serie {
 
 func (db *DB) ListSeriesWithTotals(prefix string) []*model.Serie {
 	series := []*model.Serie{}
-	q := `SELECT s.id, s.name, count(*) FROM series as s, books_series as bs WHERE name LIKE ? AND s.id=bs.serie_id GROUP BY s.Name`
+	q := `SELECT s.id, s.name, count(*) as c FROM series as s, books_series as bs WHERE s.name LIKE ? AND s.id=bs.serie_id GROUP BY s.Name HAVING c>2`
 	rows, err := db.Query(q, prefix+"%")
 	if err != nil {
 		log.Fatal(err)
