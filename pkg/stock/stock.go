@@ -18,13 +18,6 @@ import (
 	"github.com/vinser/flibgo/pkg/model"
 )
 
-type Op uint32
-
-const (
-	Init Op = 1 << iota
-	Scan
-)
-
 type Handler struct {
 	CFG *config.Config
 	DB  *database.DB
@@ -38,6 +31,7 @@ type Sync struct {
 	Quota chan struct{}
 }
 
+// Reindex() - recr
 func (h *Handler) Reindex() {
 	db := h.DB
 	db.DropDB(h.CFG.Database.DROP_SCRIPT)
@@ -74,7 +68,7 @@ func (h *Handler) ScanDir(reindex bool) error {
 		switch {
 		case entry.Size() == 0:
 			h.LOG.E.Printf("File %s from dir has size of zero\n", entry.Name())
-			os.Rename(path, filepath.Join(h.CFG.Library.TRASH))
+			os.Rename(path, filepath.Join(h.CFG.Library.TRASH, entry.Name()))
 		case entry.IsDir():
 			h.LOG.I.Printf("Subdirectory %s has been skipped\n ", path)
 			// scanDir(false) // uncomment for recurse

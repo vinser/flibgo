@@ -1,28 +1,37 @@
+
 library:
-  BOOK_STOCK: "/books"
+  # Selfexplained folders
+  BOOK_STOCK: "/books/stock"
   NEW_ACQUISITIONS: "/books/new"
   TRASH: "/books/trash"
-  POLL_PERIOD: 60
+  # New aqusitions processing period
+  POLL_PERIOD: 60 
 
 language:
-  DEFAULT: "ru"
+  # Russian, can be changed to "en" for English
+  DEFAULT: "ru"  
 
 database:
   DSN: "flibgo:flibgo@tcp(db:3306)/flibgo?charset=utf8"
   INIT_SCRIPT: "config/mysql_db_init.sql"
   DROP_SCRIPT: "config/mysql_db_drop.sql"
+  # Maximum simultaneous new aquisitios processing threads
   MAX_SCAN_THREADS: 3
 
 genres:
   TREE_FILE: "config/genres.xml"
+  # Alternative genres can be used (Russian only, sorry) 
   # TREE_FILE: "config/alt_genres.xml"
   
 logs:
+  # Logs are here
   OPDS: "logs/opds.log"
   SCAN: "logs/scan.log"
   DEBUG: false
 
 opds:
+  # OPDS-server port
   PORT: 8085
+  # OPDS feeds entries page size
   PAGE_SIZE: 30
 

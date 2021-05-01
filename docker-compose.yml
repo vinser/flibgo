@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     volumes:
       - /your/path/to/books:/books
-      # ^^^^^^^^^^^^^^^^^^^ - your path to book stock
+      # ^^^^^^^^^^^^^^^^^^^ - path to your book stock folders
       - .:/flibgo
     working_dir: /flibgo
     command: go run cmd/flibgo/main.go opds
@@ -29,9 +29,9 @@ services:
       - MYSQL_DATABASE=flibgo
       - MYSQL_USER=flibgo
       - MYSQL_PASSWORD=flibgo
-      - TZ=Asia/Yekaterinburg
+      - TZ=Asia/Yekaterinburg # set time zone for your location
     # ports:
-    #   - 3306:3306
+    #   - 3306:3306 # uncomment to use sql client for DB exploration
     networks:
       - app-tier
 
