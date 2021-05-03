@@ -13,12 +13,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// See config.yml for comments about this struct
 type Config struct {
 	Library struct {
 		BOOK_STOCK       string `yaml:"BOOK_STOCK"`
 		NEW_ACQUISITIONS string `yaml:"NEW_ACQUISITIONS"`
 		TRASH            string `yaml:"TRASH"`
-		POLL_PERIOD      int    `yaml:"POLL_PERIOD"`
 	}
 	Language struct {
 		DEFAULT string `yaml:"DEFAULT"`
@@ -27,7 +27,9 @@ type Config struct {
 		DSN              string `yaml:"DSN"`
 		INIT_SCRIPT      string `yaml:"INIT_SCRIPT"`
 		DROP_SCRIPT      string `yaml:"DROP_SCRIPT"`
+		POLL_PERIOD      int    `yaml:"POLL_PERIOD"`
 		MAX_SCAN_THREADS int    `yaml:"MAX_SCAN_THREADS"`
+		ACCEPTED_LANGS   string `yaml:"ACCEPTED_LANGS"`
 	}
 	Genres struct {
 		TREE_FILE string `yaml:"TREE_FILE"`
@@ -43,7 +45,7 @@ type Config struct {
 	}
 }
 
-func GetConfig(configFile string) *Config {
+func LoadConfig(configFile string) *Config {
 	f, err := os.Open(configFile)
 	if err != nil {
 		log.Fatal(err)

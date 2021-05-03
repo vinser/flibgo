@@ -24,7 +24,7 @@ import (
 func main() {
 	const configFile = "config/config.yml"
 
-	cfg := config.GetConfig(configFile)
+	cfg := config.LoadConfig(configFile)
 	config.LoadLocales()
 	langTag := language.Make(cfg.Language.DEFAULT)
 
@@ -67,7 +67,7 @@ func main() {
 		log.Print(f)
 		for {
 			stockHandler.ScanDir(false)
-			time.Sleep(time.Duration(cfg.Library.POLL_PERIOD) * time.Second)
+			time.Sleep(time.Duration(cfg.Database.POLL_PERIOD) * time.Second)
 			select {
 			case <-stopScan:
 				return

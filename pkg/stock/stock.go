@@ -90,7 +90,7 @@ func (h *Handler) ScanDir(reindex bool) error {
 func (h *Handler) processFB2(path string) {
 	crc32 := fileCRC32(path)
 	fInfo, _ := os.Stat(path)
-	if h.DB.SkipBook(fInfo.Name(), crc32) {
+	if h.DB.IsInStock(fInfo.Name(), crc32) {
 		msg := "file %s has been skipped"
 		h.LOG.I.Printf(msg, path, "\n")
 		h.moveFile(path, fmt.Errorf(msg, path))
@@ -129,6 +129,10 @@ func (h *Handler) processFB2(path string) {
 		SerieNum: fb2.Serie.Number,
 		Updated:  time.Now().Unix(),
 	}
+	if !h.acceptLanguage(book.Language.Code) {
+		h.LOG.E.Printf("File %s has non accepted publication language \"%s\" - skipped\n", path, book.Language.Code)
+		return
+	}
 	h.adjustGenges(book)
 	h.DB.NewBook(book)
 	f.Close()
@@ -153,8 +157,8 @@ func (h *Handler) processZip(zipPath string) {
 			h.LOG.E.Printf("File %s from %s has not FB2 format\n", file.Name, filepath.Base(zipPath))
 			continue
 		}
-		if h.DB.SkipBook(file.Name, file.CRC32) {
-			h.LOG.I.Printf("File %s from %s has been skipped\n", file.Name, filepath.Base(zipPath))
+		if h.DB.IsInStock(file.Name, file.CRC32) {
+			h.LOG.I.Printf("File %s from %s is in stock and has been skipped\n", file.Name, filepath.Base(zipPath))
 			continue
 		}
 		if file.UncompressedSize == 0 {
@@ -188,6 +192,10 @@ func (h *Handler) processZip(zipPath string) {
 			SerieNum: fb2.Serie.Number,
 			Updated:  time.Now().Unix(),
 		}
+		if !h.acceptLanguage(book.Language.Code) {
+			h.LOG.E.Printf("File %s from %s has non accepted publication language \"%s\" - skipped\n", file.Name, filepath.Base(zipPath), book.Language.Code)
+			continue
+		}
 		h.adjustGenges(book)
 		h.DB.NewBook(book)
 		f.Close()
@@ -203,6 +211,10 @@ func (h *Handler) adjustGenges(b *model.Book) {
 	for i := range b.Genres {
 		b.Genres[i] = h.GT.Transfer(b.Genres[i])
 	}
+}
+
+func (h *Handler) acceptLanguage(lang string) bool {
+	return strings.Contains(h.CFG.Database.ACCEPTED_LANGS, lang)
 }
 
 func (h *Handler) moveFile(filePath string, err error) {

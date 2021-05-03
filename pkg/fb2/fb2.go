@@ -10,6 +10,7 @@ import (
 	"github.com/vinser/flibgo/pkg/model"
 
 	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/language"
 )
 
 type FB2 struct {
@@ -175,7 +176,9 @@ func (fb *FB2) GetCover() string {
 }
 
 func (fb *FB2) GetLanguage() *model.Language {
-	return &model.Language{Code: strings.Trim(fb.Lang, "\n\t ")}
+	code := strings.Trim(fb.Lang, "\n\t ")
+	base, _ := language.Make(code).Base()
+	return &model.Language{Code: fmt.Sprint(base)}
 }
 
 func (fb *FB2) GetAuthors() []*model.Author {

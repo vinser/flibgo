@@ -94,7 +94,7 @@ func (db *DB) FindBookById(id int64) *model.Book {
 	return b
 }
 
-func (db *DB) SkipBook(file string, crc32 uint32) bool {
+func (db *DB) IsInStock(file string, crc32 uint32) bool {
 	var id int64 = 0
 	q := "SELECT id FROM books WHERE file=? AND crc32=?"
 	err := db.QueryRow(q, file, crc32).Scan(&id)
@@ -136,12 +136,14 @@ func (db *DB) NewAuthor(a *model.Author) int64 {
 }
 
 func (db *DB) ListAuthors(prefix, language string) []*model.Author {
-	order := ""
+	var order1, order2 string
 	switch language {
 	case "ru":
-		order = "а" // Cyrilic 'а'
+		order1 = "а" // Cyrilic 'а'
+		order2 = "a" // Latin 'a'
 	default:
-		order = "a" // Latin 'a'
+		order1 = "a" // Latin 'a'
+		order2 = "а" // Cyrilic 'а'
 	}
 	l := utf8.RuneCountInString(prefix) + 1
 	var (
@@ -149,7 +151,7 @@ func (db *DB) ListAuthors(prefix, language string) []*model.Author {
 		err  error
 	)
 	if l == 1 {
-		q := fmt.Sprint(`SELECT id, name, substr(sort,1,1) as s, count(*) as c FROM authors GROUP BY s ORDER BY sort<'`, order, `', sort<'`, order, `',sort`)
+		q := fmt.Sprint(`SELECT id, name, substr(sort,1,1) as s, count(*) as c FROM authors GROUP BY s ORDER BY s<'`, order1, `', s<'`, order2, `',s`)
 		rows, err = db.Query(q)
 	} else {
 		q := fmt.Sprint(`SELECT id, name, substr(sort,1,`, fmt.Sprint(l), `) as s, count(*) as c FROM authors WHERE sort LIKE ? GROUP BY s`)
@@ -345,12 +347,14 @@ func (db *DB) ListSerieBooks(id int64, limit, offset int) []*model.Book {
 // select id, substr(name,1,1) as s, count(*) as c FROM series group by s order by name<'а', `name`<'a',`name`;
 
 func (db *DB) ListSeries(prefix, language string) []*model.Serie {
-	order := ""
+	var order1, order2 string
 	switch language {
 	case "ru":
-		order = "а" // Cyrilic 'а'
+		order1 = "а" // Cyrilic 'а'
+		order2 = "a" // Latin 'a'
 	default:
-		order = "a" // Latin 'a'
+		order1 = "a" // Latin 'a'
+		order2 = "а" // Cyrilic 'а'
 	}
 	l := utf8.RuneCountInString(prefix) + 1
 	var (
@@ -358,7 +362,7 @@ func (db *DB) ListSeries(prefix, language string) []*model.Serie {
 		err  error
 	)
 	if l == 1 {
-		q := fmt.Sprint(`SELECT s.id, substr(s.name,1,1) as n, count(*) as c FROM series as s, books_series as bs WHERE s.id=bs.serie_id GROUP BY n HAVING c>2 ORDER BY name<'`, order, `', name<'`, order, `',name`)
+		q := fmt.Sprint(`SELECT s.id, substr(s.name,1,1) as n, count(*) as c FROM series as s, books_series as bs WHERE s.id=bs.serie_id GROUP BY n HAVING c>2 ORDER BY name<'`, order1, `', name<'`, order2, `',name`)
 		rows, err = db.Query(q)
 	} else {
 		q := fmt.Sprint(`SELECT s.id, substr(s.name,1,`, fmt.Sprint(l), `) as n, count(*) as c FROM series as s, books_series as bs WHERE s.id=bs.serie_id AND s.name LIKE ? GROUP BY n HAVING c>2`)
