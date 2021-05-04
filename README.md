@@ -22,12 +22,12 @@ OPDS-catalog is checked and works with mobile readers FBReader and PocketBook Re
    
    Copy zip-archive with **flibgo** `https://github.com/vinser/flibgo/archive/refs/heads/master.zip` or download **flibgo** with `git clone https://github.com/vinser/flibgo.git`
 
-   In the `docker-compose.yml` file specify the folder in which FB2 files and zip files with FB2s will be processed and stored.
+   In the `docker-compose.yml` file specify the folder like 'books' in which FB2 files and/or zip files with FB2s will be processed and stored.
 
-   The folder should have this structure:
+   The folder will contain thre subfolderd:
 ```
 books
-  ├─── new   - put new FB2 files and zip archives with FB2 files here
+  ├─── new   - put new FB2 files and/or zip archives with FB2 files here
   ├─── stock - library catalogue files and archives are stored here
   └─── trash - files that have been processing bugs will come here 
 ```
