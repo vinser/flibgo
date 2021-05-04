@@ -2,10 +2,8 @@ package stock
 
 import (
 	"archive/zip"
-	"errors"
 	"fmt"
 	"hash/crc32"
-	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -52,11 +50,9 @@ func (h *Handler) Reindex() {
 func (h *Handler) ScanDir(reindex bool) error {
 
 	for _, d := range []string{h.CFG.Library.BOOK_STOCK, h.CFG.Library.NEW_ACQUISITIONS, h.CFG.Library.TRASH} {
-		if _, err := os.Stat(d); errors.Is(err, fs.ErrNotExist) {
-			if err := os.MkdirAll(d, 0666); err != nil {
-				h.LOG.E.Printf("failed to create directory %s: %s", d, err)
-				log.Fatalf("failed to create directory %s: %s", d, err)
-			}
+		if err := os.MkdirAll(d, 0666); err != nil {
+			h.LOG.E.Printf("failed to create directory %s: %s", d, err)
+			log.Fatalf("failed to create directory %s: %s", d, err)
 		}
 	}
 
