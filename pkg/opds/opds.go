@@ -25,6 +25,7 @@ import (
 	"github.com/vinser/flibgo/pkg/fb2"
 	"github.com/vinser/flibgo/pkg/genres"
 	"github.com/vinser/flibgo/pkg/model"
+	"github.com/vinser/flibgo/pkg/rlog"
 
 	"github.com/nfnt/resize"
 	"golang.org/x/text/message"
@@ -35,7 +36,7 @@ type Handler struct {
 	DB  *database.DB
 	GT  *genres.GenresTree
 	P   *message.Printer
-	LOG *config.Log
+	LOG *rlog.Log
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

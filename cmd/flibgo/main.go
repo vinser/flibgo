@@ -15,6 +15,7 @@ import (
 	"github.com/vinser/flibgo/pkg/database"
 	"github.com/vinser/flibgo/pkg/genres"
 	"github.com/vinser/flibgo/pkg/opds"
+	"github.com/vinser/flibgo/pkg/rlog"
 	"github.com/vinser/flibgo/pkg/stock"
 
 	"golang.org/x/text/language"
@@ -28,9 +29,9 @@ func main() {
 	config.LoadLocales()
 	langTag := language.Make(cfg.Language.DEFAULT)
 
-	stockLog := config.NewLog(cfg.Logs.SCAN, cfg.Logs.DEBUG)
+	stockLog := rlog.NewLog(cfg.Logs.SCAN, cfg.Logs.DEBUG)
 	defer stockLog.File.Close()
-	opdsLog := config.NewLog(cfg.Logs.OPDS, cfg.Logs.DEBUG)
+	opdsLog := rlog.NewLog(cfg.Logs.OPDS, cfg.Logs.DEBUG)
 	defer opdsLog.File.Close()
 
 	db := database.NewDB(cfg.Database.DSN)
@@ -103,14 +104,14 @@ func main() {
 	<-shutdown
 	f = "shutdown started...\n"
 	opdsLog.I.Printf(f)
-	log.Printf(f)
+	log.Println(f)
 
 	// Stop scanning for new aquisitions and wait for completion
 	stopScan <- struct{}{}
 	<-stopScan
 	f = "new aquisitions scanning was stoped successfully\n"
 	stockLog.I.Printf(f)
-	log.Printf(f)
+	log.Println(f)
 
 	// Shutdown OPDS server
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

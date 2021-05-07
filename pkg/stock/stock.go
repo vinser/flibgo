@@ -17,13 +17,14 @@ import (
 	"github.com/vinser/flibgo/pkg/fb2"
 	"github.com/vinser/flibgo/pkg/genres"
 	"github.com/vinser/flibgo/pkg/model"
+	"github.com/vinser/flibgo/pkg/rlog"
 )
 
 type Handler struct {
 	CFG *config.Config
 	DB  *database.DB
 	GT  *genres.GenresTree
-	LOG *config.Log
+	LOG *rlog.Log
 	SY  Sync
 }
 
