@@ -1,5 +1,5 @@
 # **flibgo** 
-([**flibgo**](README_RU.md) русский вариант )
+([*русский вариант*](README_RU.md))
 
 **flibgo** is a home library OPDS server 
 
