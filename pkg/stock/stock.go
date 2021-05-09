@@ -77,10 +77,10 @@ func (h *Handler) ScanDir(reindex bool) error {
 		ext := strings.ToLower(filepath.Ext(entry.Name()))
 		switch {
 		case entry.Size() == 0:
-			h.LOG.E.Printf("File %s from dir has size of zero\n", entry.Name())
+			h.LOG.E.Printf("file %s from dir has size of zero\n", entry.Name())
 			os.Rename(path, filepath.Join(h.CFG.Library.TRASH, entry.Name()))
 		case entry.IsDir():
-			h.LOG.I.Printf("Subdirectory %s has been skipped\n ", path)
+			h.LOG.I.Printf("fubdirectory %s has been skipped\n ", path)
 			// scanDir(false) // uncomment for recurse
 		case ext == ".zip":
 			h.LOG.I.Println("Zip: ", entry.Name())
@@ -101,21 +101,21 @@ func (h *Handler) processFB2(path string) {
 	crc32 := fileCRC32(path)
 	fInfo, _ := os.Stat(path)
 	if h.DB.IsInStock(fInfo.Name(), crc32) {
-		msg := "file %s has been skipped"
-		h.LOG.I.Printf(msg, path, "\n")
+		msg := "file %s is in stock already and has been skipped"
+		h.LOG.I.Printf(msg+"\n", path)
 		h.moveFile(path, fmt.Errorf(msg, path))
 		return
 	}
 	f, err := os.Open(path)
 	if err != nil {
-		h.LOG.E.Printf("Failed to open file %s: %s\n", path, err)
+		h.LOG.E.Printf("failed to open file %s: %s\n", path, err)
 		h.moveFile(path, err)
 		return
 	}
 	defer f.Close()
 	fb2, err := fb2.NewFB2(f)
 	if err != nil {
-		h.LOG.E.Printf("File %s has error: %s\n", path, err)
+		h.LOG.E.Printf("file %s has error: %s\n", path, err)
 		h.moveFile(path, err)
 		return
 	}
@@ -140,13 +140,15 @@ func (h *Handler) processFB2(path string) {
 		Updated:  time.Now().Unix(),
 	}
 	if !h.acceptLanguage(book.Language.Code) {
-		h.LOG.E.Printf("File %s has non accepted publication language \"%s\" - skipped\n", path, book.Language.Code)
+		msg := "publication language \"%s\" is not accepted, file %s has been skipped"
+		h.LOG.E.Printf(msg+"\n", book.Language.Code, path)
+		h.moveFile(path, fmt.Errorf(msg, book.Language.Code, path))
 		return
 	}
 	h.adjustGenges(book)
 	h.DB.NewBook(book)
 	f.Close()
-	h.LOG.I.Printf("File %s has been added\n", path)
+	h.LOG.I.Printf("file %s has been added\n", path)
 	h.moveFile(path, nil)
 }
 
@@ -155,7 +157,7 @@ func (h *Handler) processZip(zipPath string) {
 	defer h.SY.WG.Done()
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
-		h.LOG.E.Printf("Incorrect zip archive %s\n", zipPath)
+		h.LOG.E.Printf("incorrect zip archive %s\n", zipPath)
 		h.moveFile(zipPath, err)
 		return
 	}
@@ -164,22 +166,21 @@ func (h *Handler) processZip(zipPath string) {
 	for _, file := range zr.File {
 		h.LOG.D.Print(ZipEntryInfo(file))
 		if filepath.Ext(file.Name) != ".fb2" {
-			h.LOG.E.Printf("File %s from %s has not FB2 format\n", file.Name, filepath.Base(zipPath))
+			h.LOG.E.Printf("file %s from %s has not FB2 format\n", file.Name, filepath.Base(zipPath))
 			continue
 		}
 		if h.DB.IsInStock(file.Name, file.CRC32) {
-			h.LOG.I.Printf("File %s from %s is in stock and has been skipped\n", file.Name, filepath.Base(zipPath))
+			h.LOG.I.Printf("file %s from %s is in stock already and has been skipped\n", file.Name, filepath.Base(zipPath))
 			continue
 		}
 		if file.UncompressedSize == 0 {
-			h.LOG.E.Printf("File %s from %s has size of zero\n", file.Name, filepath.Base(zipPath))
+			h.LOG.E.Printf("file %s from %s has size of zero\n", file.Name, filepath.Base(zipPath))
 			continue
 		}
 		f, _ := file.Open()
 		fb2, err := fb2.NewFB2(f)
 		if err != nil {
-			h.LOG.I.Printf("File %s from %s has error:\n", file.Name, filepath.Base(zipPath))
-			h.LOG.E.Println(err)
+			h.LOG.I.Printf("file %s from %s has error: %s\n", file.Name, filepath.Base(zipPath), err.Error())
 			f.Close()
 			continue
 		}
@@ -203,13 +204,13 @@ func (h *Handler) processZip(zipPath string) {
 			Updated:  time.Now().Unix(),
 		}
 		if !h.acceptLanguage(book.Language.Code) {
-			h.LOG.E.Printf("File %s from %s has non accepted publication language \"%s\" - skipped\n", file.Name, filepath.Base(zipPath), book.Language.Code)
+			h.LOG.E.Printf("publication language \"%s\" is not accepted, file %s from %s has been skipped\n", book.Language.Code, file.Name, filepath.Base(zipPath))
 			continue
 		}
 		h.adjustGenges(book)
 		h.DB.NewBook(book)
 		f.Close()
-		h.LOG.I.Printf("File %s from %s has been added\n", file.Name, filepath.Base(zipPath))
+		h.LOG.I.Printf("file %s from %s has been added\n", file.Name, filepath.Base(zipPath))
 
 		// runtime.Gosched()
 	}

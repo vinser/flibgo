@@ -40,7 +40,6 @@ func main() {
 		db.InitDB(cfg.Database.INIT_SCRIPT)
 		f := "Book stock was inited. Tables were created in empty database"
 		stockLog.I.Println(f)
-		return
 	}
 
 	genresTree := genres.NewGenresTree(cfg.Genres.TREE_FILE)
@@ -104,14 +103,14 @@ func main() {
 	<-shutdown
 	f = "shutdown started...\n"
 	opdsLog.I.Printf(f)
-	log.Println(f)
+	log.Print(f)
 
 	// Stop scanning for new aquisitions and wait for completion
 	stopScan <- struct{}{}
 	<-stopScan
 	f = "new aquisitions scanning was stoped successfully\n"
 	stockLog.I.Printf(f)
-	log.Println(f)
+	log.Print(f)
 
 	// Shutdown OPDS server
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
