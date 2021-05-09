@@ -362,10 +362,11 @@ func (db *DB) ListSeries(prefix, language string) []*model.Serie {
 		err  error
 	)
 	if l == 1 {
-		q := fmt.Sprint(`SELECT s.id, substr(s.name,1,1) as n, count(*) as c FROM series as s, books_series as bs WHERE s.id=bs.serie_id GROUP BY n HAVING c>2 ORDER BY name<'`, order1, `', name<'`, order2, `',name`)
+		q := fmt.Sprint(`SELECT s2.id, substr(s2.n,1,1) as n2, count(*) as c2 FROM (SELECT s.id as id, s.name as n, count(*) as c FROM series as s, books_series as bs WHERE s.id=bs.serie_id GROUP BY n HAVING c>2) as s2 GROUP BY n2 ORDER BY n2<'`, order1, `', n2<'`, order2, `', n2`)
 		rows, err = db.Query(q)
 	} else {
-		q := fmt.Sprint(`SELECT s.id, substr(s.name,1,`, fmt.Sprint(l), `) as n, count(*) as c FROM series as s, books_series as bs WHERE s.id=bs.serie_id AND s.name LIKE ? GROUP BY n HAVING c>2`)
+		q := fmt.Sprint(`SELECT s2.id, substr(s2.n,1,`, fmt.Sprint(l), `) as n2, count(*) as c2 FROM (SELECT s.id as id, s.name as n, count(*) as c FROM series as s, books_series as bs WHERE s.id=bs.serie_id GROUP BY n HAVING c>2) as s2 WHERE s2.n LIKE ? GROUP BY n2;
+		`)
 		rows, err = db.Query(q, prefix+"%")
 	}
 	if err != nil {

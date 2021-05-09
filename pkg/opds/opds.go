@@ -477,7 +477,7 @@ func (h *Handler) listSeries(w http.ResponseWriter, r *http.Request) {
 	if len(series) == 0 {
 		return
 	}
-	totalBooks := int(0)
+	totalBooks := 0
 	for _, s := range series {
 		totalBooks += s.Count
 	}
@@ -491,36 +491,36 @@ func (h *Handler) listSeries(w http.ResponseWriter, r *http.Request) {
 
 	f := NewFeed(h.P.Sprintf("Series"), "", selfHref)
 	switch {
-	case len(series) <= h.CFG.OPDS.PAGE_SIZE:
+	case len(series) <= h.CFG.OPDS.PAGE_SIZE && prefix != "":
 		series = h.DB.ListSeriesWithTotals(prefix)
-		for i := range series {
+		for _, serie := range series {
 			entry := &Entry{
-				Title:   series[i].Name,
-				ID:      "/opds/series?serie=" + series[i].Name,
+				Title:   serie.Name,
+				ID:      "/opds/series?serie=" + serie.Name,
 				Updated: f.Time(time.Now()),
 				Link: []Link{
-					{Rel: FeedSubsectionLinkRel, Href: "/opds/series?id=" + fmt.Sprint(series[i].ID), Type: FeedNavigationLinkType},
+					{Rel: FeedSubsectionLinkRel, Href: "/opds/series?id=" + fmt.Sprint(serie.ID), Type: FeedNavigationLinkType},
 				},
 				Content: &Content{
 					Type:    FeedTextContentType,
-					Content: h.P.Sprintf("Total books - %d", series[i].Count),
+					Content: h.P.Sprintf("Total books - %d", serie.Count),
 				},
 			}
 			f.Entry = append(f.Entry, entry)
 		}
 		writeFeed(w, http.StatusOK, *f)
 	default:
-		for i := range series {
+		for _, serie := range series {
 			entry := &Entry{
-				Title:   series[i].Name,
-				ID:      "/opds/series?serie=" + series[i].Name,
+				Title:   serie.Name,
+				ID:      "/opds/series?serie=" + serie.Name,
 				Updated: f.Time(time.Now()),
 				Link: []Link{
-					{Rel: FeedSubsectionLinkRel, Href: "/opds/series?serie=" + url.QueryEscape(series[i].Name), Type: FeedNavigationLinkType},
+					{Rel: FeedSubsectionLinkRel, Href: "/opds/series?serie=" + url.QueryEscape(serie.Name), Type: FeedNavigationLinkType},
 				},
 				Content: &Content{
 					Type:    FeedTextContentType,
-					Content: h.P.Sprintf("Total books - %d", series[i].Count),
+					Content: h.P.Sprintf("Total series - %d", serie.Count),
 				},
 			}
 			f.Entry = append(f.Entry, entry)
