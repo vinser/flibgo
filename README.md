@@ -1,5 +1,10 @@
-# **flibgo** 
-([*русский вариант*](README_RU.md))
+# **flibgo**
+[ *русский вариант здесь* ](README_RU.md)
+
+### CAVEAT EMPTOR
+*This software is in developement*
+
+---
 
 **flibgo** is a home library OPDS server 
 
