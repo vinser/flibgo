@@ -708,7 +708,7 @@ func (h *Handler) unloadCover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		h.LOG.E.Printf("Image convertion: %s", err.Error())
+		h.LOG.E.Printf("Image conversion: %s", err.Error())
 		return
 	}
 	switch {
