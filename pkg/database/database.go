@@ -54,18 +54,24 @@ func (db *DB) NewBook(b *model.Book) int64 {
 	for _, author := range b.Authors {
 		authorId := db.NewAuthor(author)
 		q = "INSERT INTO books_authors (book_id, author_id) VALUES (?, ?)"
-		res, err = db.Exec(q, bookId, authorId)
+		_, err = db.Exec(q, bookId, authorId)
+	}
+	if err != nil {
+		log.Println(err)
 	}
 
 	for _, genre := range b.Genres {
 		q = "INSERT INTO books_genres (book_id, genre_code) VALUES (?, ?)"
-		res, err = db.Exec(q, bookId, genre)
+		_, err = db.Exec(q, bookId, genre)
+	}
+	if err != nil {
+		log.Println(err)
 	}
 
 	serieId := db.NewSerie(b.Serie)
 	if serieId != 0 {
 		q = "INSERT INTO books_series (serie_num, book_id, serie_id) VALUES (?, ?, ?)"
-		res, err = db.Exec(q, b.SerieNum, bookId, serieId)
+		_, err = db.Exec(q, b.SerieNum, bookId, serieId)
 		if err != nil {
 			log.Println(err)
 		}
