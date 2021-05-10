@@ -59,7 +59,7 @@ func NewGenresTree(treeFile string) *GenresTree {
 }
 
 func (gt *GenresTree) Transfer(genre string) string {
-	genre = strings.ReplaceAll(genre, "-", "_")
+	genre = strings.ReplaceAll(strings.TrimSpace(genre), "-", "_")
 	for _, g := range gt.Genres {
 		for _, sg := range g.Subgenres {
 			if sg.Value == genre {
@@ -72,7 +72,7 @@ func (gt *GenresTree) Transfer(genre string) string {
 			}
 		}
 	}
-	return "no_name:" + genre
+	return string([]rune("no_name:" + genre)[:32])
 	// return genre
 }
 
