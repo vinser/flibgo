@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
-	"image/png"
 	"io"
 	"mime"
 	"net/http"
@@ -29,6 +28,10 @@ import (
 
 	"github.com/nfnt/resize"
 	"golang.org/x/text/message"
+
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 )
 
 type Handler struct {
@@ -635,29 +638,49 @@ func (h *Handler) unloadBook(w http.ResponseWriter, r *http.Request) {
 
 // Covers
 func (h *Handler) covers(w http.ResponseWriter, r *http.Request) {
-	h.unloadCover(w, r)
-}
-
-func (h *Handler) unloadCover(w http.ResponseWriter, r *http.Request) {
-	var bookId int64
-	var err error
 	switch {
 	case r.FormValue("cover") != "":
-		bookId, _ = strconv.ParseInt(r.FormValue("cover"), 10, 64)
 		h.LOG.D.Println(commentURL("Cover", r))
+		h.unloadCover(w, r)
 	case r.FormValue("thumbnail") != "":
-		bookId, _ = strconv.ParseInt(r.FormValue("thumbnail"), 10, 64)
 		h.LOG.D.Println(commentURL("Thumbnail", r))
+		h.unloadThumbnail(w, r)
 	default:
 		return
 	}
-	book := h.DB.FindBookById(bookId)
-	if book == nil {
-		writeMessage(w, http.StatusNotFound, h.P.Sprintf("Book not found"))
+
+}
+
+func (h *Handler) unloadCover(w http.ResponseWriter, r *http.Request) {
+	bookId, _ := strconv.ParseInt(r.FormValue("cover"), 10, 64)
+	img := h.getCoverImage(bookId)
+	if img == nil {
 		return
 	}
-	if book.Cover == "" {
+	w.Header().Add("Content-Disposition", fmt.Sprintf("attachment; filename=%s", "cover.jpg"))
+	w.Header().Add("Content-Type", "image/jpeg")
+	jpeg.Encode(w, img, nil)
+}
+
+func (h *Handler) unloadThumbnail(w http.ResponseWriter, r *http.Request) {
+	bookId, _ := strconv.ParseInt(r.FormValue("thumbnail"), 10, 64)
+	img := h.getCoverImage(bookId)
+	if img == nil {
 		return
+	}
+	img = resize.Resize(100, 0, img, resize.NearestNeighbor)
+	w.Header().Add("Content-Disposition", fmt.Sprintf("attachment; filename=%s", "thumbnail.jpg"))
+	w.Header().Add("Content-Type", "image/jpeg")
+	jpeg.Encode(w, img, nil)
+}
+
+func (h *Handler) getCoverImage(bookId int64) image.Image {
+	book := h.DB.FindBookById(bookId)
+	if book == nil {
+		return nil
+	}
+	if book.Cover == "" {
+		return nil
 	}
 	var rc io.ReadCloser
 	if book.Archive == "" {
@@ -673,54 +696,18 @@ func (h *Handler) unloadCover(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	defer rc.Close()
-
 	cover, err := fb2.GetCoverPageBinary(book.Cover, rc)
 	if err != nil {
 		h.LOG.E.Print(err)
-		return
+		return nil
 	}
-	var fileName, ext, contentType string
-	contentType = cover.ContentType
-	switch contentType {
-	case "image/jpeg":
-		ext = ".jpg"
-	case "image/png":
-		ext = ".png"
-	default:
-		ext = path.Ext(book.Cover)
-		contentType = mime.TypeByExtension(ext)
-	}
-	if contentType != "image/jpeg" && contentType != "image/png" {
-		// No cover
-		return
-	}
-
-	fileName = fmt.Sprint("cover", ext)
 	br := base64.NewDecoder(base64.StdEncoding, bytes.NewReader(cover.Content))
-
-	var inImg, outImg image.Image
-	switch contentType {
-	case "image/jpeg":
-		inImg, err = jpeg.Decode(br)
-	case "image/png":
-		inImg, err = png.Decode(br)
-	default:
-		return
-	}
+	img, _, err := image.Decode(br)
 	if err != nil {
-		h.LOG.E.Printf("Image conversion: %s", err.Error())
-		return
+		h.LOG.E.Print(err)
+		return nil
 	}
-	switch {
-	case r.FormValue("cover") != "":
-		outImg = inImg
-	case r.FormValue("thumbnail") != "":
-		h.P.Sprintf("file: %s, content: %s\n", fileName, contentType)
-		outImg = resize.Resize(100, 0, inImg, resize.NearestNeighbor)
-	}
-	w.Header().Add("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
-	w.Header().Add("Content-Type", cover.ContentType)
-	jpeg.Encode(w, outImg, nil)
+	return img
 }
 
 // utils =======================
