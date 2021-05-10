@@ -12,7 +12,7 @@
 
 This **flibgo** release only supports FB2 publications, both individual files and zip archives.
 
-OPDS-catalog is checked and works with mobile readers FBReader and PocketBook Reader with a library of 450,000 publications
+OPDS-catalog is checked and works with mobile readers FBReader and PocketBook Reader
 
 
 ## 1-2-3 Installation
