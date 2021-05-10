@@ -101,7 +101,7 @@ func main() {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	<-shutdown
-	f = "shutdown started...\n"
+	f = "\nshutdown started...\n"
 	opdsLog.I.Printf(f)
 	log.Print(f)
 
