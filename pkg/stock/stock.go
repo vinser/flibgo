@@ -17,6 +17,7 @@ import (
 	"github.com/vinser/flibgo/pkg/fb2"
 	"github.com/vinser/flibgo/pkg/genres"
 	"github.com/vinser/flibgo/pkg/model"
+	"github.com/vinser/flibgo/pkg/parser"
 	"github.com/vinser/flibgo/pkg/rlog"
 )
 
@@ -87,9 +88,9 @@ func (h *Handler) ScanDir(reindex bool) error {
 			h.SY.WG.Add(1)
 			h.SY.Quota <- struct{}{}
 			go h.processZip(path)
-		case ext == ".fb2":
-			h.LOG.I.Println("FB2: ", entry.Name())
-			h.processFB2(path)
+		default:
+			h.LOG.I.Println("file: ", entry.Name())
+			h.processFile(path)
 		}
 	}
 	h.SY.WG.Wait()
@@ -97,7 +98,7 @@ func (h *Handler) ScanDir(reindex bool) error {
 }
 
 // Process single FB2 file
-func (h *Handler) processFB2(path string) {
+func (h *Handler) processFile(path string) {
 	crc32 := fileCRC32(path)
 	fInfo, _ := os.Stat(path)
 	if h.DB.IsInStock(fInfo.Name(), crc32) {
@@ -113,34 +114,41 @@ func (h *Handler) processFB2(path string) {
 		return
 	}
 	defer f.Close()
-	fb2, err := fb2.NewFB2(f)
-	if err != nil {
-		h.LOG.E.Printf("file %s has error: %s\n", path, err)
-		h.moveFile(path, err)
-		return
-	}
 
-	h.LOG.D.Println(fb2)
+	var p parser.Parser
+	switch filepath.Ext(path) {
+	case ".fb2":
+		p, err = fb2.NewFB2(f)
+		if err != nil {
+			h.LOG.E.Printf("file %s has errors: %s\n", path, err)
+			h.moveFile(path, err)
+			return
+		}
+	default:
+		h.LOG.E.Printf("file %s has not supported format \"%s\"\n", path, filepath.Ext(path))
+		h.moveFile(path, err)
+	}
+	h.LOG.D.Println(p)
 	book := &model.Book{
 		File:     fInfo.Name(),
 		CRC32:    crc32,
 		Archive:  "",
 		Size:     fInfo.Size(),
-		Format:   "fb2",
-		Title:    fb2.GetTitle(),
-		Sort:     fb2.GetSort(),
-		Year:     fb2.GetYear(),
-		Plot:     fb2.GetPlot(),
-		Cover:    fb2.GetCover(),
-		Language: fb2.GetLanguage(),
-		Authors:  fb2.GetAuthors(),
-		Genres:   fb2.GetGenres(),
-		Serie:    fb2.GetSerie(),
-		SerieNum: fb2.Serie.Number,
+		Format:   p.GetFormat(),
+		Title:    p.GetTitle(),
+		Sort:     p.GetSort(),
+		Year:     p.GetYear(),
+		Plot:     p.GetPlot(),
+		Cover:    p.GetCover(),
+		Language: p.GetLanguage(),
+		Authors:  p.GetAuthors(),
+		Genres:   p.GetGenres(),
+		Serie:    p.GetSerie(),
+		SerieNum: p.GetSerieNumber(),
 		Updated:  time.Now().Unix(),
 	}
 	if !h.acceptLanguage(book.Language.Code) {
-		msg := "publication language \"%s\" is not accepted, file %s has been skipped"
+		msg := "publication language \"%s\" is configured as not accepted, file %s has been skipped"
 		h.LOG.E.Printf(msg+"\n", book.Language.Code, path)
 		h.moveFile(path, fmt.Errorf(msg, book.Language.Code, path))
 		return
@@ -178,29 +186,35 @@ func (h *Handler) processZip(zipPath string) {
 			continue
 		}
 		f, _ := file.Open()
-		fb2, err := fb2.NewFB2(f)
-		if err != nil {
-			h.LOG.I.Printf("file %s from %s has error: %s\n", file.Name, filepath.Base(zipPath), err.Error())
-			f.Close()
-			continue
+		var p parser.Parser
+		switch filepath.Ext(file.Name) {
+		case ".fb2":
+			p, err = fb2.NewFB2(f)
+			if err != nil {
+				h.LOG.I.Printf("file %s from %s has error: %s\n", file.Name, filepath.Base(zipPath), err.Error())
+				f.Close()
+				continue
+			}
+		default:
+			h.LOG.E.Printf("file %s has not supported format \"%s\"\n", file.Name, filepath.Ext(file.Name))
 		}
-		h.LOG.D.Println(fb2)
+		h.LOG.D.Println(p)
 		book := &model.Book{
 			File:     file.Name,
 			CRC32:    file.CRC32,
 			Archive:  filepath.Base(zipPath),
 			Size:     int64(file.UncompressedSize),
-			Format:   "fb2",
-			Title:    fb2.GetTitle(),
-			Sort:     fb2.GetSort(),
-			Year:     fb2.GetYear(),
-			Plot:     fb2.GetPlot(),
-			Cover:    fb2.GetCover(),
-			Language: fb2.GetLanguage(),
-			Authors:  fb2.GetAuthors(),
-			Genres:   fb2.GetGenres(),
-			Serie:    fb2.GetSerie(),
-			SerieNum: fb2.Serie.Number,
+			Format:   p.GetFormat(),
+			Title:    p.GetTitle(),
+			Sort:     p.GetSort(),
+			Year:     p.GetYear(),
+			Plot:     p.GetPlot(),
+			Cover:    p.GetCover(),
+			Language: p.GetLanguage(),
+			Authors:  p.GetAuthors(),
+			Genres:   p.GetGenres(),
+			Serie:    p.GetSerie(),
+			SerieNum: p.GetSerieNumber(),
 			Updated:  time.Now().Unix(),
 		}
 		if !h.acceptLanguage(book.Language.Code) {

@@ -66,7 +66,7 @@ DROP TABLE IF EXISTS books_genres;
 CREATE TABLE books_genres (
     id INTEGER   PRIMARY KEY AUTO_INCREMENT,
     book_id INTEGER NOT NULL,
-    genre_code VARCHAR(32) NOT NULL,
+    genre_code VARCHAR(64) NOT NULL,
     FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
 );
 CREATE INDEX books_genres_genre_code_idx ON books_genres (genre_code);

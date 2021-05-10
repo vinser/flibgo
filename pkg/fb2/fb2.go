@@ -142,9 +142,15 @@ func charsetReader(charset string, input io.Reader) (io.Reader, error) {
 	switch strings.ToLower(charset) {
 	case "windows-1251":
 		return charmap.Windows1251.NewDecoder().Reader(input), nil
+	case "windows-1252":
+		return charmap.Windows1252.NewDecoder().Reader(input), nil
 	default:
 		return nil, fmt.Errorf("unknown charset: %s", charset)
 	}
+}
+
+func (fb *FB2) GetFormat() string {
+	return "fb2"
 }
 
 func (fb *FB2) GetTitle() string {
@@ -215,4 +221,8 @@ func (fb *FB2) GetGenres() []string {
 
 func (fb *FB2) GetSerie() *model.Serie {
 	return &model.Serie{Name: fb.Serie.Name}
+}
+
+func (fb *FB2) GetSerieNumber() int {
+	return fb.Serie.Number
 }
