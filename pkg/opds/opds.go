@@ -30,7 +30,6 @@ import (
 	"golang.org/x/text/message"
 
 	_ "image/gif"
-	_ "image/jpeg"
 	_ "image/png"
 )
 
