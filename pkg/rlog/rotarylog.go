@@ -34,6 +34,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -52,10 +53,10 @@ type RotaryLog struct {
 	size  int64
 }
 
-// NewRotaryLog return instance of RotaryLog
+// New return instance of RotaryLog
 // defaults
 // age  86400 rotate every 24h0m0s
-// num  7     files (max <= 10)
+// num  7     files
 // size 0     no limit size
 func NewRotaryLog(logfile string, age, num, size int) (*RotaryLog, error) {
 	f, err := os.OpenFile(logfile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -67,30 +68,33 @@ func NewRotaryLog(logfile string, age, num, size int) (*RotaryLog, error) {
 		Age = time.Duration(age) * time.Second
 	}
 	num--
-	if num < 0 || num > 6 {
+	if num < 0 {
 		num = 7
 	}
 	Size := 0
 	if size > 0 {
 		Size = size * 1048576
 	}
+
 	rl := &RotaryLog{
+		Mutex: sync.Mutex{},
 		Age:   Age,
 		Num:   num,
 		Size:  Size,
 		file:  f,
 		sTime: time.Now(),
+		size:  0,
 	}
+	i, err := rl.file.Stat()
+	if err != nil {
+		return rl, nil
+	}
+	rl.sTime = i.ModTime()
+	rl.size = i.Size()
 	// rotate if needed
-	if i, err := rl.file.Stat(); err == nil {
-		if rl.Age > 0 && time.Since(i.ModTime()) >= rl.Age {
-			if err := rl.rotate(); err != nil {
-				return nil, err
-			}
-		} else if rl.Size > 0 && i.Size() > int64(rl.Size) {
-			if err := rl.rotate(); err != nil {
-				return nil, err
-			}
+	if rl.Age > 0 && time.Since(rl.sTime) >= rl.Age || rl.Size > 0 && rl.size > int64(rl.Size) {
+		if err := rl.rotate(); err != nil {
+			return nil, err
 		}
 	}
 	return rl, nil
@@ -103,13 +107,8 @@ func (rl *RotaryLog) Write(p []byte) (n int, err error) {
 
 	writeLen := int64(len(p))
 
-	// rotate based on Age and size
-	if rl.Age > 0 && time.Since(rl.sTime) >= rl.Age {
-		rl.sTime = time.Now()
-		if err := rl.rotate(); err != nil {
-			return 0, err
-		}
-	} else if rl.Size > 0 && rl.size+writeLen > int64(rl.Size) {
+	// rotate based on Age and Size
+	if rl.Age > 0 && time.Since(rl.sTime) >= rl.Age || rl.Size > 0 && rl.size+writeLen > int64(rl.Size) {
 		if err := rl.rotate(); err != nil {
 			return 0, err
 		}
@@ -146,7 +145,8 @@ func (rl *RotaryLog) Rotate() error {
 
 // rotate close existing log file and create a new one
 func (rl *RotaryLog) rotate() error {
-	format := "%s-%d%s"
+	digits := fmt.Sprint(len(strconv.Itoa(rl.Num)))
+	format := "%s-%0" + digits + "d%s"
 	path := rl.file.Name()
 	ext := filepath.Ext(path)
 	rl.close()
@@ -172,6 +172,7 @@ func (rl *RotaryLog) rotate() error {
 		return err
 	}
 	rl.file = f
+	rl.sTime = time.Now()
 	rl.size = 0
 	return nil
 }

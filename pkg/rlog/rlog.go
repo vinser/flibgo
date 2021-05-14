@@ -15,7 +15,8 @@ type Log struct {
 func NewLog(logFile string, debug bool) *Log {
 	dw := ioutil.Discard
 	// fw, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-	fw, err := NewRotaryLog(logFile, 0, 0, 0)
+	// fw, err := NewRotaryLog(logFile, 86400, 0, 0)
+	fw, err := NewRotaryLog(logFile, 60, 0, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
