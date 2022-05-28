@@ -1,8 +1,12 @@
 # **flibgo**
 [ *русский вариант здесь* ](README_RU.md)
 
-### CAVEAT EMPTOR
-*This software is in developement*
+### STABLE RELEASE v1.0.0
+*This software release has been tested for a year*
+
+*Multi-platform service is being developed in the form of a lightweight executable module* [ ***flibgolite*** ](https://github.com/vinser/flibgolite)
+
+Based on the results of development and testing of ***flibgolite***, an update will be made to ***flibgo***
 
 ---
 
@@ -29,7 +33,7 @@ OPDS-catalog is checked and works with mobile readers FBReader and PocketBook Re
 
    In the `docker-compose.yml` file specify the folder like 'books' in which FB2 files and/or zip files with FB2s will be processed and stored.
 
-   The folder will contain thre subfolderd:
+   The folder will contain three subfolderd:
 ```
 books
   ├─── new   - put new FB2 files and/or zip archives with FB2 files here
