@@ -37,7 +37,7 @@ type Config struct {
 	Logs struct {
 		OPDS  string `yaml:"OPDS"`
 		SCAN  string `yaml:"SCAN"`
-		DEBUG bool   `yaml:"DEBUG"`
+		LEVEL string `yaml:"LEVEL"`
 	}
 	OPDS struct {
 		PORT      int `yaml:"PORT"`
@@ -60,6 +60,20 @@ func LoadConfig(configFile string) *Config {
 		log.Fatal(err)
 	}
 	return c
+}
+
+func (cfg *Config) MkDirAll() {
+	if err := os.MkdirAll(cfg.Library.BOOK_STOCK, 0666); err != nil {
+		log.Fatalf("failed to create Library BOOK_STOCK directory %s: %s", cfg.Library.BOOK_STOCK, err)
+	}
+	if len(cfg.Library.NEW_ACQUISITIONS) > 0 {
+		if err := os.MkdirAll(cfg.Library.NEW_ACQUISITIONS, 0666); err != nil {
+			log.Fatalf("failed to create Library NEW_ACQUISITIONS directory %s: %s", cfg.Library.NEW_ACQUISITIONS, err)
+		}
+	}
+	if err := os.MkdirAll(cfg.Library.TRASH, 0666); err != nil {
+		log.Fatalf("failed to create Library TRASH directory %s: %s", cfg.Library.TRASH, err)
+	}
 }
 
 func LoadLocales() {

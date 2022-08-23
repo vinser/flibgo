@@ -33,11 +33,10 @@ OPDS-catalog is checked and works with mobile readers FBReader and PocketBook Re
 
    In the `docker-compose.yml` file specify the folder like 'books' in which FB2 files and/or zip files with FB2s will be processed and stored.
 
-   The folder will contain three subfolderd:
+   The folder will contain two subfolderd:
 ```
 books
-  ├─── new   - put new FB2 files and/or zip archives with FB2 files here
-  ├─── stock - library catalogue files and archives are stored here
+  ├─── stock - put new FB2 files and/or zip archives with FB2 files here
   └─── trash - files that have been processing bugs will come here 
 ```
    In the `docker-compose.yml` file set your local time zone if needed (TZ tag)

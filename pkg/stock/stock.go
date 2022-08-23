@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,7 +33,7 @@ type Sync struct {
 	Quota chan struct{}
 }
 
-// Reindex() - recr
+// Reindex() - recreate book stock database
 func (h *Handler) Reindex() {
 	db := h.DB
 	db.DropDB(h.CFG.Database.DROP_SCRIPT)
@@ -51,15 +50,8 @@ func (h *Handler) Reindex() {
 // Scan
 func (h *Handler) ScanDir(reindex bool) error {
 
-	for _, d := range []string{h.CFG.Library.BOOK_STOCK, h.CFG.Library.NEW_ACQUISITIONS, h.CFG.Library.TRASH} {
-		if err := os.MkdirAll(d, 0666); err != nil {
-			h.LOG.E.Printf("failed to create directory %s: %s", d, err)
-			log.Fatalf("failed to create directory %s: %s", d, err)
-		}
-	}
-
 	dir := h.CFG.Library.NEW_ACQUISITIONS
-	if reindex {
+	if reindex || len(dir) == 0 {
 		dir = h.CFG.Library.BOOK_STOCK
 	}
 	d, err := os.Open(dir)
@@ -81,15 +73,13 @@ func (h *Handler) ScanDir(reindex bool) error {
 			h.LOG.E.Printf("file %s from dir has size of zero\n", entry.Name())
 			os.Rename(path, filepath.Join(h.CFG.Library.TRASH, entry.Name()))
 		case entry.IsDir():
-			h.LOG.I.Printf("fubdirectory %s has been skipped\n ", path)
+			h.LOG.E.Printf("subdirectory %s has been skipped\n ", path)
 			// scanDir(false) // uncomment for recurse
 		case ext == ".zip":
-			h.LOG.I.Println("Zip: ", entry.Name())
 			h.SY.WG.Add(1)
 			h.SY.Quota <- struct{}{}
 			go h.processZip(path)
 		default:
-			h.LOG.I.Println("file: ", entry.Name())
 			h.processFile(path)
 		}
 	}
@@ -101,12 +91,15 @@ func (h *Handler) ScanDir(reindex bool) error {
 func (h *Handler) processFile(path string) {
 	crc32 := fileCRC32(path)
 	fInfo, _ := os.Stat(path)
-	if h.DB.IsInStock(fInfo.Name(), crc32) {
+	if h.DB.IsFileInStock(fInfo.Name(), crc32) {
 		msg := "file %s is in stock already and has been skipped"
-		h.LOG.I.Printf(msg+"\n", path)
-		h.moveFile(path, fmt.Errorf(msg, path))
+		h.LOG.D.Printf(msg+"\n", path)
+		if len(h.CFG.Library.NEW_ACQUISITIONS) > 0 {
+			h.moveFile(path, fmt.Errorf(msg, path))
+		}
 		return
 	}
+	h.LOG.I.Println("Single file: ", path)
 	f, err := os.Open(path)
 	if err != nil {
 		h.LOG.E.Printf("failed to open file %s: %s\n", path, err)
@@ -149,20 +142,29 @@ func (h *Handler) processFile(path string) {
 	}
 	if !h.acceptLanguage(book.Language.Code) {
 		msg := "publication language \"%s\" is configured as not accepted, file %s has been skipped"
-		h.LOG.E.Printf(msg+"\n", book.Language.Code, path)
+		h.LOG.D.Printf(msg+"\n", book.Language.Code, path)
 		h.moveFile(path, fmt.Errorf(msg, book.Language.Code, path))
 		return
 	}
 	h.adjustGenges(book)
 	h.DB.NewBook(book)
 	f.Close()
-	h.LOG.I.Printf("file %s has been added\n", path)
+	h.LOG.D.Printf("file %s has been added\n", path)
 	h.moveFile(path, nil)
 }
 
 // Process zip archive with FB2 files
 func (h *Handler) processZip(zipPath string) {
 	defer h.SY.WG.Done()
+	if h.DB.IsArchiveInStock(filepath.Base(zipPath)) {
+		msg := "archive %s is in stock already and has been skipped"
+		h.LOG.D.Printf(msg+"\n", zipPath)
+		if len(h.CFG.Library.NEW_ACQUISITIONS) > 0 {
+			h.moveFile(zipPath, fmt.Errorf(msg, zipPath))
+		}
+		return
+	}
+	h.LOG.I.Println("Zip archive: ", zipPath)
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
 		h.LOG.E.Printf("incorrect zip archive %s\n", zipPath)
@@ -177,8 +179,8 @@ func (h *Handler) processZip(zipPath string) {
 			h.LOG.E.Printf("file %s from %s has not FB2 format\n", file.Name, filepath.Base(zipPath))
 			continue
 		}
-		if h.DB.IsInStock(file.Name, file.CRC32) {
-			h.LOG.I.Printf("file %s from %s is in stock already and has been skipped\n", file.Name, filepath.Base(zipPath))
+		if h.DB.IsFileInStock(file.Name, file.CRC32) {
+			h.LOG.D.Printf("file %s from %s is in stock already and has been skipped\n", file.Name, filepath.Base(zipPath))
 			continue
 		}
 		if file.UncompressedSize == 0 {
@@ -191,7 +193,7 @@ func (h *Handler) processZip(zipPath string) {
 		case ".fb2":
 			p, err = fb2.NewFB2(f)
 			if err != nil {
-				h.LOG.I.Printf("file %s from %s has error: %s\n", file.Name, filepath.Base(zipPath), err.Error())
+				h.LOG.E.Printf("file %s from archive %s has error: %s\n", file.Name, filepath.Base(zipPath), err.Error())
 				f.Close()
 				continue
 			}
@@ -218,13 +220,13 @@ func (h *Handler) processZip(zipPath string) {
 			Updated:  time.Now().Unix(),
 		}
 		if !h.acceptLanguage(book.Language.Code) {
-			h.LOG.E.Printf("publication language \"%s\" is not accepted, file %s from %s has been skipped\n", book.Language.Code, file.Name, filepath.Base(zipPath))
+			h.LOG.D.Printf("publication language \"%s\" is not accepted, file %s from %s has been skipped\n", book.Language.Code, file.Name, filepath.Base(zipPath))
 			continue
 		}
 		h.adjustGenges(book)
 		h.DB.NewBook(book)
 		f.Close()
-		h.LOG.I.Printf("file %s from %s has been added\n", file.Name, filepath.Base(zipPath))
+		h.LOG.D.Printf("file %s from %s has been added\n", file.Name, filepath.Base(zipPath))
 
 		// runtime.Gosched()
 	}
@@ -262,7 +264,7 @@ func fileCRC32(filePath string) uint32 {
 	return crc32.ChecksumIEEE(fbytes)
 }
 
-//===============================
+// ===============================
 func ZipEntryInfo(e *zip.File) string {
 	return "\n===========================================\n" +
 		fmt.Sprintln("File               : ", e.Name) +
