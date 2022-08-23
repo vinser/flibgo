@@ -26,12 +26,13 @@ func main() {
 	const configFile = "config/config.yml"
 
 	cfg := config.LoadConfig(configFile)
+	cfg.MkDirAll()
 	config.LoadLocales()
 	langTag := language.Make(cfg.Language.DEFAULT)
 
-	stockLog := rlog.NewLog(cfg.Logs.SCAN, cfg.Logs.DEBUG)
+	stockLog := rlog.NewLog(cfg.Logs.SCAN, cfg.Logs.LEVEL)
 	defer stockLog.File.Close()
-	opdsLog := rlog.NewLog(cfg.Logs.OPDS, cfg.Logs.DEBUG)
+	opdsLog := rlog.NewLog(cfg.Logs.OPDS, cfg.Logs.LEVEL)
 	defer opdsLog.File.Close()
 
 	db := database.NewDB(cfg.Database.DSN)

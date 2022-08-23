@@ -1,32 +1,42 @@
 package rlog
 
 import (
-	"io/ioutil"
+	"io"
 	"log"
 )
 
 type Log struct {
 	File *RotaryLog
+	D    *log.Logger // debug
 	I    *log.Logger // info
 	E    *log.Logger // error
-	D    *log.Logger // debug
 }
 
-func NewLog(logFile string, debug bool) *Log {
-	dw := ioutil.Discard
-	// fw, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-	// fw, err := NewRotaryLog(logFile, 86400, 0, 0)
-	fw, err := NewRotaryLog(logFile, 60, 0, 0)
+func NewLog(logFile, level string) *Log {
+	var dw = io.Discard
+	var iw = io.Discard
+	var ew io.Writer
+
+	fw, err := NewRotaryLog(logFile, 86400, 0, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if debug {
+	switch level {
+	case "D":
 		dw = fw
+		fallthrough
+	case "I":
+		iw = fw
+		fallthrough
+	case "E":
+		ew = fw
+	default:
+		ew = fw
 	}
 	return &Log{
 		File: fw,
-		I:    log.New(fw, "INFO:\t", log.LstdFlags),
-		E:    log.New(fw, "ERROR:\t ", log.LstdFlags|log.Lshortfile),
 		D:    log.New(dw, "DEBUG:\t", log.LstdFlags|log.Lshortfile),
+		I:    log.New(iw, "INFO:\t", log.LstdFlags),
+		E:    log.New(ew, "ERROR:\t ", log.LstdFlags|log.Lshortfile),
 	}
 }

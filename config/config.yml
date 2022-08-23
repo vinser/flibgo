@@ -1,9 +1,9 @@
 
 library:
   # Selfexplained folders
-  BOOK_STOCK: "/books/stock"
-  NEW_ACQUISITIONS: "/books/new"
-  TRASH: "/books/trash"
+  BOOK_STOCK: "/books/stock" # Book stock
+  # NEW_ACQUISITIONS: "/books/new" # Uncomment the line to have separate folder for new acqwired books
+  TRASH: "/books/trash" # Error and duplicate files and archives wil be moved to this folder 
 
 language:
   # Russian, can be changed to "en" for English interface. 
@@ -29,7 +29,7 @@ logs:
   # Logs are here
   OPDS: "logs/opds.log"
   SCAN: "logs/scan.log"
-  DEBUG: false
+  LEVEL: "I" # E - error, I - info, D - debug in ascending verbosity level order
 
 opds:
   # OPDS-server port

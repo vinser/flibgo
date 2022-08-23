@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/vinser/flibgo/pkg/model"
@@ -174,7 +175,7 @@ func (fb *FB2) GetYear() string {
 }
 
 func (fb *FB2) GetPlot() string {
-	return fb.Annotation.Text
+	return stripNonprintables(fb.Annotation.Text)
 }
 
 func (fb *FB2) GetCover() string {
@@ -225,4 +226,10 @@ func (fb *FB2) GetSerie() *model.Serie {
 
 func (fb *FB2) GetSerieNumber() int {
 	return fb.Serie.Number
+}
+
+var rxPrintables = regexp.MustCompile(`(?m)[\p{L}\p{P}\p{N}\n\r\t <>]`)
+
+func stripNonprintables(s string) string {
+	return strings.Join(rxPrintables.FindAllString(s, -1), "")
 }
