@@ -1,8 +1,8 @@
 # **flibgo**
 [ *русский вариант здесь* ](README_RU.md)
 
-### STABLE RELEASE v1.0.0
-*This software release has been tested for a year*
+### STABLE RELEASE v1.1.0
+*This software release has been tested for more than a year*
 
 *Multi-platform service is being developed in the form of a lightweight executable module* [ ***flibgolite*** ](https://github.com/vinser/flibgolite)
 
