@@ -2,7 +2,7 @@
 library:
   # Selfexplained folders
   BOOK_STOCK: "/books/stock" # Book stock
-  # NEW_ACQUISITIONS: "/books/new" # Uncomment the line to have separate folder for new acqwired books
+  # NEW_ACQUISITIONS: "/books/new" # Uncomment the line to have separate folder for new acquired books
   TRASH: "/books/trash" # Error and duplicate files and archives wil be moved to this folder 
 
 language:
