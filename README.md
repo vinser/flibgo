@@ -1,7 +1,7 @@
 # **flibgo**
 [ *русский вариант здесь* ](README_RU.md)
 
-### STABLE RELEASE v1.1.0
+### STABLE RELEASE v1.1.1
 
 *Multi-platform service is being developed in the form of a lightweight executable module* [ ***flibgolite*** ](https://github.com/vinser/flibgolite)
 
