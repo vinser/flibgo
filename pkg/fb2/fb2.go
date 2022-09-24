@@ -1,16 +1,20 @@
 package fb2
 
 import (
+	"bytes"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/vinser/flibgo/pkg/model"
 
-	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/charset"
+	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
 
@@ -20,7 +24,7 @@ type FB2 struct {
 
 func NewFB2(rc io.ReadCloser) (*FB2, error) {
 	decoder := xml.NewDecoder(rc)
-	decoder.CharsetReader = charsetReader
+	decoder.CharsetReader = charset.NewReaderLabel
 	fb := &FB2{}
 TokenLoop:
 	for {
@@ -43,7 +47,7 @@ TokenLoop:
 
 func (fb *FB2) String() string {
 	return fmt.Sprint(
-		"=========FB2===================\n",
+		"\n=========FB2===================\n",
 		fmt.Sprintf("Authors:    %#v\n", fb.Authors),
 		fmt.Sprintf("Title:      %#v\n", fb.Title),
 		fmt.Sprintf("Gengre:     %#v\n", fb.Gengres),
@@ -100,8 +104,9 @@ type Binary struct {
 
 func GetCoverPageBinary(coverLink string, rc io.ReadCloser) (*Binary, error) {
 	decoder := xml.NewDecoder(rc)
-	decoder.CharsetReader = charsetReader
+	decoder.CharsetReader = charset.NewReaderLabel
 	b := &Binary{}
+	noCover := true
 	coverLink = strings.TrimPrefix(coverLink, "#")
 TokenLoop:
 	for {
@@ -115,6 +120,7 @@ TokenLoop:
 				for _, att := range se.Attr {
 					if strings.ToLower(att.Name.Local) == "id" && att.Value == coverLink {
 						decoder.DecodeElement(b, &se)
+						noCover = false
 						break TokenLoop
 					}
 				}
@@ -122,7 +128,7 @@ TokenLoop:
 		default:
 		}
 	}
-	if b == nil {
+	if noCover {
 		return nil, errors.New("FB2 has no Cover Page")
 	}
 	return b, nil
@@ -137,17 +143,6 @@ func (b *Binary) String() string {
 %#v
 ===========(100)================
 `, b.Id, b.ContentType, b.Content[:99])
-}
-
-func charsetReader(charset string, input io.Reader) (io.Reader, error) {
-	switch strings.ToLower(charset) {
-	case "windows-1251":
-		return charmap.Windows1251.NewDecoder().Reader(input), nil
-	case "windows-1252":
-		return charmap.Windows1252.NewDecoder().Reader(input), nil
-	default:
-		return nil, fmt.Errorf("unknown charset: %s", charset)
-	}
 }
 
 func (fb *FB2) GetFormat() string {
@@ -175,7 +170,9 @@ func (fb *FB2) GetYear() string {
 }
 
 func (fb *FB2) GetPlot() string {
-	return stripNonprintables(fb.Annotation.Text)
+	s := stripNonprintables(fb.Annotation.Text)
+	// s = wellFormHTML(s)
+	return truncateUTF8String(s, 10000)
 }
 
 func (fb *FB2) GetCover() string {
@@ -206,11 +203,16 @@ func (fb *FB2) GetAuthors() []*model.Author {
 	}
 	for _, a := range fb.Authors {
 		author := &model.Author{}
-		f := strings.Title(strings.ToLower(strings.Trim(a.FirstName, "\n\t ")))
-		m := strings.Title(strings.ToLower(strings.Trim(a.MiddleName, "\n\t ")))
-		l := strings.Title(strings.ToLower(strings.Trim(a.LastName, "\n\t ")))
-		author.Name = strings.ReplaceAll(fmt.Sprint(f, " ", m, " ", l), "  ", " ")
-		author.Sort = strings.ReplaceAll(fmt.Sprint(l, " ", f, " ", m), "  ", " ")
+		// f := strings.Title(strings.ToLower(strings.Trim(a.FirstName, "\n\t ")))
+		// m := strings.Title(strings.ToLower(strings.Trim(a.MiddleName, "\n\t ")))
+		// l := strings.Title(strings.ToLower(strings.Trim(a.LastName, "\n\t ")))
+		// author.Name = strings.ReplaceAll(fmt.Sprint(f, " ", m, " ", l), "  ", " ")
+		// author.Sort = strings.ReplaceAll(fmt.Sprint(l, " ", f, " ", m), "  ", " ")
+		f := refineName(a.FirstName, fb.Lang)
+		m := refineName(a.MiddleName, fb.Lang)
+		l := refineName(a.LastName, fb.Lang)
+		author.Name = CollapseSpaces(fmt.Sprintf("%s %s %s", f, m, l))
+		author.Sort = CollapseSpaces(fmt.Sprintf("%s, %s %s", l, f, m))
 		authors = append(authors, author)
 	}
 	return authors
@@ -228,8 +230,70 @@ func (fb *FB2) GetSerieNumber() int {
 	return fb.Serie.Number
 }
 
-var rxPrintables = regexp.MustCompile(`(?m)[\p{L}\p{P}\p{N}\n\r\t <>]`)
+var rxPrintables = regexp.MustCompile(`(?m)[\p{L}\p{P}\p{N}\n\r\t </>]`)
 
 func stripNonprintables(s string) string {
 	return strings.Join(rxPrintables.FindAllString(s, -1), "")
+}
+
+func wellFormHTML(s string) string {
+	nodes, err := html.ParseFragment(bytes.NewBufferString(s), nil)
+	if err != nil {
+		return s
+	}
+
+	b := new(bytes.Buffer)
+	for _, v := range nodes {
+		err := html.Render(b, v)
+		if err != nil {
+			return s
+		}
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(b.String(), "<html><head></head><body>"), "</body></html>")
+}
+
+// Truncate UTF8-coded string to the given or less number of bytes to maintain the integrity of string runes
+func truncateUTF8String(str string, length int) string {
+	if length <= 0 {
+		return ""
+	}
+	if len(str) <= length {
+		return str
+	}
+	// If string is not valuid UTF8
+	if !utf8.ValidString(str) {
+		return str[:length]
+	}
+	for len(str) > length {
+		_, size := utf8.DecodeLastRuneInString(str)
+		str = str[:len(str)-size]
+	}
+	return str
+}
+
+func refineName(n, lang string) string {
+	return title(lower(strings.TrimSpace(n), lang), lang)
+}
+
+func title(s, lang string) string {
+	return cases.Title(getLanguageTag(lang)).String(s)
+}
+
+func lower(s, lang string) string {
+	return cases.Lower(getLanguageTag(lang)).String(s)
+}
+
+func upper(s, lang string) string {
+	return cases.Upper(getLanguageTag(lang)).String(s)
+}
+
+func getLanguageTag(lang string) language.Tag {
+	return language.Make(strings.TrimSpace(lang))
+}
+
+// RegExp Remove surplus spaces
+var rxSpaces = regexp.MustCompile(`[ \n\r\t]+`)
+
+func CollapseSpaces(s string) string {
+	return rxSpaces.ReplaceAllString(s, ` `)
 }
