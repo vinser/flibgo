@@ -22,7 +22,7 @@ OPDS-catalog is checked and works with mobile readers FBReader and PocketBook Re
 ---
 1. Preparing for installation
 
-   **flibgo** is written in GO and uses MariaDB database to store the catalog, so I recommend launching **flibgo** in Docker containers to simplify installation and setup.
+   **flibgo** is written in GO and uses MariaDB database to store the catalog, so I recommend to launch **flibgo** in Docker containers to simplify installation and setup.
 
    Desktop installation for Windows, MacOS and Linux is described there https://www.docker.com/products/docker-desktop
 
