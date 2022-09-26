@@ -1,15 +1,16 @@
 # **flibgo**
-[ *русский вариант здесь* ](README_RU.md)
+[ *русский вариант здесь* ](README_RU.md)  
+[ *український варіант тут* ](README_UK.md)
 
 ### STABLE RELEASE v1.1.1
 
 *Multi-platform service is being developed in the form of a lightweight executable module* [ ***flibgolite*** ](https://github.com/vinser/flibgolite)
 
-Based on the results of development and testing of ***flibgolite***, an update will be made to ***flibgo***
+*Based on the results of development and testing of ***flibgolite***, an update will be made to ***flibgo***
 
 ---
 
-**flibgo** is a home library OPDS server 
+**flibgo** is an OPDS server for the FB2 book archive library 
 
 >The Open Publication Distribution System (OPDS) catalog format is a syndication format for electronic publications based on Atom and HTTP. OPDS catalogs enable the aggregation, distribution, discovery, and acquisition of electronic publications. (Wikipedia)
 
