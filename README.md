@@ -1,12 +1,12 @@
 # **flibgo**
+[ *український варіант тут* ](README_UK.md)  
 [ *русский вариант здесь* ](README_RU.md)  
-[ *український варіант тут* ](README_UK.md)
 
 ### STABLE RELEASE v1.1.1
 
-*Multi-platform service is being developed in the form of a lightweight executable module* [ ***flibgolite*** ](https://github.com/vinser/flibgolite)
-
-*Based on the results of development and testing of ***flibgolite***, an update will be made to ***flibgo***
+*Further development stopped*  
+*Multi-platform service is being developed in the form of a lightweight executable module* [ ***flibgolite*** ](https://github.com/vinser/flibgolite)  
+***flibgolite*** *is enough for a home library and more*
 
 ---
 
